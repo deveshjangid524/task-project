@@ -1,0 +1,31 @@
+const mongoose = require('mongoose');
+
+const taskSchema = new mongoose.Schema({
+    title: { type: String, required: true },
+    description: { type: String },
+    category: { type: String },
+    priority: { type: String, enum: ['Low', 'Medium', 'High', 'Critical'], default: 'Medium' },
+    status: { type: String, enum: ['To Do', 'In Progress', 'In Review', 'Completed', 'Blocked'], default: 'To Do' },
+    assignedTo: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
+    dependsOn: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Task' }],
+    timeEstimates: {
+        estimatedHours: { type: Number, required: true },
+        aiSuggestedHours: { type: Number }
+    },
+    scheduling: {
+        manualStartDate: { type: Date },
+        manualDueDate: { type: Date },
+        aiOptimizedStartDate: { type: Date },
+        aiOptimizedDueDate: { type: Date },
+        isRescheduledByAI: { type: Boolean, default: false }
+    },
+    historyLogs: [{
+        action: { type: String },
+        changedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+        timestamp: { type: Date, default: Date.now },
+        details: { type: String }
+    }]
+}, { timestamps: true });
+
+taskSchema.index({ status: 1, assignedTo: 1 });
+module.exports = mongoose.model('Task', taskSchema);
