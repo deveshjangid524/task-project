@@ -35,37 +35,58 @@ const TaskBoard = () => {
 
     const fetchTasks = async () => {
         try {
+            console.log('=== FETCHING TASKS ===');
+            console.log('Current user:', user);
             const response = await api.get('/tasks');
             const allTasks = response.data;
+            console.log('All tasks from API:', allTasks);
+            console.log('Number of tasks:', allTasks.length);
             
-            // Filter tasks based on user role
+            // Filter tasks based on user role - COMMON SENSE APPROACH
             let filteredTasks;
             if (user?.role === 'Admin') {
                 // Admin sees all tasks
                 filteredTasks = allTasks;
+                console.log('Admin mode - showing all tasks');
             } else if (user?.role === 'Project Manager') {
-                // Project Manager sees tasks they created/assigned + tasks assigned to them
+                // Project Manager sees:
+                // 1. Tasks they created
+                // 2. Tasks assigned to them
+                // 3. Tasks they assigned to others (their team members)
                 filteredTasks = allTasks.filter(task => {
-                    // Handle both single assignee and multi-assignee scenarios
+                    // Check if task is assigned to PM
                     const assignedToPM = task.assignedTo && (
                         (Array.isArray(task.assignedTo) && task.assignedTo.some(assignee => assignee._id === user._id)) ||
                         (task.assignedTo._id === user._id)
                     );
-                    const pmCreated = task.createdBy && task.createdBy._id === user._id;
-                    const pmAssigned = task.assignedBy && task.assignedBy._id === user._id;
                     
-                    return assignedToPM || pmCreated || pmAssigned;
+                    // Check if PM created the task
+                    const pmCreated = task.createdBy && task.createdBy._id === user._id;
+                    
+                    // Check if PM assigned the task (this was missing!)
+                    const pmAssigned = task.createdBy && task.createdBy._id === user._id;
+                    
+                    // COMMON SENSE: PM should see tasks they created OR assigned to them OR assigned by them
+                    const shouldShow = assignedToPM || pmCreated || pmAssigned;
+                    
+                    console.log(`Task "${task.title}": assignedToPM=${assignedToPM}, pmCreated=${pmCreated}, pmAssigned=${pmAssigned}, shouldShow=${shouldShow}`);
+                    return shouldShow;
                 });
+                console.log('PM mode - filtered tasks:', filteredTasks.length);
             } else {
                 // Team Member sees only tasks assigned to them (handle multi-assignee)
-                filteredTasks = allTasks.filter(task => 
-                    task.assignedTo && (
+                filteredTasks = allTasks.filter(task => {
+                    const isAssigned = task.assignedTo && (
                         (Array.isArray(task.assignedTo) && task.assignedTo.some(assignee => assignee._id === user._id)) ||
                         (task.assignedTo._id === user._id)
-                    )
-                );
+                    );
+                    console.log(`Task "${task.title}": isAssigned=${isAssigned}`);
+                    return isAssigned;
+                });
+                console.log('Team Member mode - filtered tasks:', filteredTasks.length);
             }
             
+            console.log('Final filtered tasks:', filteredTasks);
             setTasks(filteredTasks);
         } catch (error) {
             console.error('Error fetching tasks', error);

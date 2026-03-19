@@ -94,8 +94,15 @@ const TaskModal = ({ task, onClose, allTasks }) => {
             scheduling: formData.manualDueDate
                 ? { manualDueDate: new Date(formData.manualDueDate) }
                 : {},
-            createdBy: currentUser?._id
+            createdBy: currentUser?._id,
+            attachmentLinks: formData.attachmentLinks
         };
+
+        console.log('=== TASK CREATION PAYLOAD ===');
+        console.log('Payload:', payload);
+        console.log('assignedTo value:', formData.assignedTo);
+        console.log('assignedTo type:', typeof formData.assignedTo);
+        console.log('currentUser:', currentUser);
 
         console.log('Submitting task payload:', payload);
         console.log('User authentication:', currentUser);
