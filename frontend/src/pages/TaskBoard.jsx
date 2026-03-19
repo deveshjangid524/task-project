@@ -31,12 +31,42 @@ const TaskBoard = () => {
 
     useEffect(() => {
         fetchTasks();
-    }, []);
+    }, [user]); // Refetch tasks when user changes
 
     const fetchTasks = async () => {
         try {
             const response = await api.get('/tasks');
-            setTasks(response.data);
+            const allTasks = response.data;
+            
+            // Filter tasks based on user role
+            let filteredTasks;
+            if (user?.role === 'Admin') {
+                // Admin sees all tasks
+                filteredTasks = allTasks;
+            } else if (user?.role === 'Project Manager') {
+                // Project Manager sees tasks they created/assigned + tasks assigned to them
+                filteredTasks = allTasks.filter(task => {
+                    // Handle both single assignee and multi-assignee scenarios
+                    const assignedToPM = task.assignedTo && (
+                        (Array.isArray(task.assignedTo) && task.assignedTo.some(assignee => assignee._id === user._id)) ||
+                        (task.assignedTo._id === user._id)
+                    );
+                    const pmCreated = task.createdBy && task.createdBy._id === user._id;
+                    const pmAssigned = task.assignedBy && task.assignedBy._id === user._id;
+                    
+                    return assignedToPM || pmCreated || pmAssigned;
+                });
+            } else {
+                // Team Member sees only tasks assigned to them (handle multi-assignee)
+                filteredTasks = allTasks.filter(task => 
+                    task.assignedTo && (
+                        (Array.isArray(task.assignedTo) && task.assignedTo.some(assignee => assignee._id === user._id)) ||
+                        (task.assignedTo._id === user._id)
+                    )
+                );
+            }
+            
+            setTasks(filteredTasks);
         } catch (error) {
             console.error('Error fetching tasks', error);
         } finally {
@@ -116,9 +146,13 @@ const TaskBoard = () => {
     const getFilteredTasks = () => {
         switch (filter) {
             case 'my':
-                return tasks.filter(task => 
-                    task.assignedTo && task.assignedTo._id === user._id
-                );
+                return tasks.filter(task => {
+                    // Handle both single assignee and multi-assignee scenarios
+                    return task.assignedTo && (
+                        (Array.isArray(task.assignedTo) && task.assignedTo.some(assignee => assignee._id === user._id)) ||
+                        (task.assignedTo._id === user._id)
+                    );
+                });
             case 'unassigned':
                 return tasks.filter(task => !task.assignedTo);
             default:
@@ -136,19 +170,36 @@ const TaskBoard = () => {
                 <div className="flex items-center space-x-4">
                     <h1 className="text-2xl font-bold text-gray-900">Task Board</h1>
                     
-                    {/* Filter Buttons */}
+                    {/* Filter Buttons - Role-based */}
                     <div className="flex space-x-2">
-                        <button
-                            onClick={() => setFilter('all')}
-                            className={`inline-flex items-center px-3 py-1 border text-sm font-medium rounded-md ${
-                                filter === 'all' 
-                                    ? 'bg-blue-600 text-white border-blue-600' 
-                                    : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
-                            }`}
-                        >
-                            <Users className="h-4 w-4 mr-1" />
-                            All Tasks
-                        </button>
+                        {user?.role === 'Admin' && (
+                            <button
+                                onClick={() => setFilter('all')}
+                                className={`inline-flex items-center px-3 py-1 border text-sm font-medium rounded-md ${
+                                    filter === 'all' 
+                                        ? 'bg-blue-600 text-white border-blue-600' 
+                                        : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
+                                }`}
+                            >
+                                <Users className="h-4 w-4 mr-1" />
+                                All Tasks
+                            </button>
+                        )}
+                        
+                        {(user?.role === 'Admin' || user?.role === 'Project Manager') && (
+                            <button
+                                onClick={() => setFilter('unassigned')}
+                                className={`inline-flex items-center px-3 py-1 border text-sm font-medium rounded-md ${
+                                    filter === 'unassigned' 
+                                        ? 'bg-blue-600 text-white border-blue-600' 
+                                        : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
+                                }`}
+                            >
+                                <Filter className="h-4 w-4 mr-1" />
+                                Unassigned
+                            </button>
+                        )}
+                        
                         <button
                             onClick={() => setFilter('my')}
                             className={`inline-flex items-center px-3 py-1 border text-sm font-medium rounded-md ${
@@ -158,18 +209,7 @@ const TaskBoard = () => {
                             }`}
                         >
                             <User className="h-4 w-4 mr-1" />
-                            My Tasks
-                        </button>
-                        <button
-                            onClick={() => setFilter('unassigned')}
-                            className={`inline-flex items-center px-3 py-1 border text-sm font-medium rounded-md ${
-                                filter === 'unassigned' 
-                                    ? 'bg-blue-600 text-white border-blue-600' 
-                                    : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
-                            }`}
-                        >
-                            <Filter className="h-4 w-4 mr-1" />
-                            Unassigned
+                            {user?.role === 'Admin' ? 'My Tasks' : 'My Tasks'}
                         </button>
                     </div>
                 </div>
@@ -186,7 +226,8 @@ const TaskBoard = () => {
             {/* Task Count Summary */}
             <div className="mb-4 text-sm text-gray-600">
                 Showing: <span className="font-medium">
-                    {filter === 'my' ? 'My Tasks' : filter === 'unassigned' ? 'Unassigned Tasks' : 'All Tasks'}
+                    {filter === 'my' ? 'My Tasks' : filter === 'unassigned' ? 'Unassigned Tasks' : 
+                     user?.role === 'Admin' ? 'All Tasks' : 'My Tasks'}
                 </span> ({filteredTasks.length} tasks)
             </div>
 

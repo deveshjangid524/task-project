@@ -58,6 +58,10 @@ const UnifiedDashboard = () => {
     const [completionDialog, setCompletionDialog] = useState({ isOpen: false, task: null });
     const [recentCompletions, setRecentCompletions] = useState([]);
     const [teamMemberTasks, setTeamMemberTasks] = useState([]);
+    const [taskCompletionData, setTaskCompletionData] = useState({
+        comments: '',
+        documents: []
+    });
     
     // AI Optimization states
     const [aiOptimizing, setAiOptimizing] = useState(false);
@@ -364,12 +368,39 @@ const UnifiedDashboard = () => {
         }
     };
 
+    const handleFileUpload = (event) => {
+        const files = Array.from(event.target.files);
+        const validFiles = files.filter(file => {
+            const maxSize = 10 * 1024 * 1024; // 10MB
+            const validTypes = ['application/pdf', 'image/jpeg', 'image/png', 'image/gif', 'text/plain', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'];
+            return file.size <= maxSize && validTypes.includes(file.type);
+        });
+
+        if (validFiles.length !== files.length) {
+            alert('Some files were invalid. Only PDF, images, text, and Word documents up to 10MB are allowed.');
+        }
+
+        setTaskCompletionData(prev => ({
+            ...prev,
+            documents: [...prev.documents, ...validFiles]
+        }));
+    };
+
+    const removeDocument = (index) => {
+        setTaskCompletionData(prev => ({
+            ...prev,
+            documents: prev.documents.filter((_, i) => i !== index)
+        }));
+    };
+
     const updateTaskStatus = async (taskId, newStatus) => {
         try {
             // If marking as completed, show confirmation dialog
             if (newStatus === 'Completed') {
                 const task = myTasks.find(t => t._id === taskId);
                 setCompletionDialog({ isOpen: true, task });
+                // Reset completion data when opening dialog
+                setTaskCompletionData({ comments: '', documents: [] });
                 return; // Don't proceed until user confirms
             }
             
@@ -387,8 +418,36 @@ const UnifiedDashboard = () => {
 
     const performStatusUpdate = async (taskId, newStatus) => {
         try {
+            const updateData = { status: newStatus };
+            
+            // Add completion data if completing task
+            if (newStatus === 'Completed') {
+                updateData.completionComments = taskCompletionData.comments;
+                updateData.completionDocuments = taskCompletionData.documents.map(file => ({
+                    name: file.name,
+                    type: file.type,
+                    size: file.size
+                }));
+            }
+            
             // Update task in backend
-            await api.put(`/tasks/${taskId}`, { status: newStatus });
+            await api.put(`/tasks/${taskId}`, updateData);
+            
+            // If completing task, upload documents
+            if (newStatus === 'Completed' && taskCompletionData.documents.length > 0) {
+                const formData = new FormData();
+                taskCompletionData.documents.forEach(file => {
+                    formData.append('documents', file);
+                });
+                formData.append('taskId', taskId);
+                formData.append('comments', taskCompletionData.comments);
+                
+                await api.post(`/tasks/${taskId}/completion-documents`, formData, {
+                    headers: {
+                        'Content-Type': 'multipart/form-data'
+                    }
+                });
+            }
             
             // Update local state immediately for instant feedback
             setMyTasks(prevTasks => 
@@ -439,12 +498,18 @@ const UnifiedDashboard = () => {
                         taskId: task._id, 
                         title: task.title, 
                         completedAt: new Date(),
-                        previousStatus: 'In Progress'
+                        previousStatus: 'In Progress',
+                        comments: taskCompletionData.comments,
+                        documentCount: taskCompletionData.documents.length
                     },
                     ...prev.slice(0, 4) // Keep only last 5 completions
                 ]);
                 
-                showNotification('success', `Task "${task.title}" completed successfully!`, 'Task Completed');
+                let message = `Task "${task.title}" completed successfully!`;
+                if (taskCompletionData.documents.length > 0) {
+                    message += ` (${taskCompletionData.documents.length} document${taskCompletionData.documents.length > 1 ? 's' : ''} uploaded)`;
+                }
+                showNotification('success', message, 'Task Completed');
             } else if (newStatus === 'In Progress') {
                 showNotification('info', 'Task marked as in progress', 'Task Updated');
             }
@@ -1244,13 +1309,23 @@ const UnifiedDashboard = () => {
                                     <p className="text-gray-500 text-center">No recent activity</p>
                                 ) : (
                                     recentCompletions.map((completion, index) => (
-                                        <div key={index} className="flex items-center space-x-3">
-                                            <CheckCircle className="h-5 w-5 text-green-500" />
+                                        <div key={index} className="flex items-start space-x-3">
+                                            <CheckCircle className="h-5 w-5 text-green-500 mt-0.5" />
                                             <div className="flex-1">
                                                 <p className="text-sm text-gray-900">
                                                     <span className="font-medium">{completion.title}</span> was completed
+                                                    {completion.documentCount > 0 && (
+                                                        <span className="ml-2 inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-800">
+                                                            {completion.documentCount} document{completion.documentCount > 1 ? 's' : ''}
+                                                        </span>
+                                                    )}
                                                 </p>
-                                                <p className="text-xs text-gray-500">
+                                                {completion.comments && (
+                                                    <p className="text-xs text-gray-600 mt-1 italic">
+                                                        "{completion.comments}"
+                                                    </p>
+                                                )}
+                                                <p className="text-xs text-gray-500 mt-1">
                                                     {new Date(completion.completedAt).toLocaleString()}
                                                 </p>
                                             </div>
@@ -1329,7 +1404,7 @@ const UnifiedDashboard = () => {
             {/* Task Completion Confirmation Dialog */}
             {completionDialog.isOpen && (
                 <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
-                    <div className="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
+                    <div className="relative top-20 mx-auto p-5 border w-full max-w-2xl shadow-lg rounded-md bg-white">
                         <div className="mt-3">
                             <div className="flex items-center justify-center w-12 h-12 mx-auto bg-green-100 rounded-full">
                                 <CheckCircle className="h-6 w-6 text-green-600" />
@@ -1340,22 +1415,107 @@ const UnifiedDashboard = () => {
                                 </h3>
                                 <div className="mt-2 px-7 py-3">
                                     <p className="text-sm text-gray-500">
-                                        Are you sure you want to mark this task as completed?
+                                        Add any comments or documents before completing this task.
                                     </p>
                                     <p className="text-sm font-medium text-gray-900 mt-2">
                                         "{completionDialog.task.title}"
                                     </p>
                                 </div>
-                                <div className="items-center px-4 py-3">
+
+                                {/* Comments Section */}
+                                <div className="mt-4 px-7">
+                                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                                        Completion Comments (Optional)
+                                    </label>
+                                    <textarea
+                                        value={taskCompletionData.comments}
+                                        onChange={(e) => setTaskCompletionData(prev => ({ ...prev, comments: e.target.value }))}
+                                        placeholder="Add any notes about how you completed this task..."
+                                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                                        rows="3"
+                                    />
+                                </div>
+
+                                {/* Document Upload Section */}
+                                <div className="mt-4 px-7">
+                                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                                        Upload Documents (Optional)
+                                    </label>
+                                    <div className="border-2 border-dashed border-gray-300 rounded-lg p-4">
+                                        <div className="text-center">
+                                            <svg
+                                                className="mx-auto h-12 w-12 text-gray-400"
+                                                stroke="currentColor"
+                                                fill="none"
+                                                viewBox="0 0 48 48"
+                                                aria-hidden="true"
+                                            >
+                                                <path
+                                                    d="M28 8H12a4 4 0 00-4 4v20m32-12v8m0 0v8a4 4 0 01-4 4H12a4 4 0 01-4-4v-4m32-4l-3.172-3.172a4 4 0 00-5.656 0L28 28M8 32l9.172-9.172a4 4 0 015.656 0L28 28m0 0l4 4m4-24h8m-4-4v8m-12 4h.02"
+                                                    strokeWidth={2}
+                                                    strokeLinecap="round"
+                                                    strokeLinejoin="round"
+                                                />
+                                            </svg>
+                                            <div className="mt-2">
+                                                <label htmlFor="file-upload" className="cursor-pointer">
+                                                    <span className="mt-2 block text-sm font-medium text-gray-900">
+                                                        Click to upload or drag and drop
+                                                    </span>
+                                                    <span className="mt-1 block text-xs text-gray-500">
+                                                        PDF, Images, Text, Word documents up to 10MB each
+                                                    </span>
+                                                </label>
+                                                <input
+                                                    id="file-upload"
+                                                    name="file-upload"
+                                                    type="file"
+                                                    className="sr-only"
+                                                    multiple
+                                                    onChange={handleFileUpload}
+                                                    accept=".pdf,.jpg,.jpeg,.png,.gif,.txt,.doc,.docx"
+                                                />
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    {/* Uploaded Documents List */}
+                                    {taskCompletionData.documents.length > 0 && (
+                                        <div className="mt-3">
+                                            <h4 className="text-sm font-medium text-gray-700 mb-2">Uploaded Documents:</h4>
+                                            <ul className="space-y-2">
+                                                {taskCompletionData.documents.map((file, index) => (
+                                                    <li key={index} className="flex items-center justify-between p-2 bg-gray-50 rounded">
+                                                        <div className="flex items-center">
+                                                            <CheckCircle className="h-4 w-4 text-green-500 mr-2" />
+                                                            <span className="text-sm text-gray-700">{file.name}</span>
+                                                            <span className="text-xs text-gray-500 ml-2">
+                                                                ({(file.size / 1024 / 1024).toFixed(2)} MB)
+                                                            </span>
+                                                        </div>
+                                                        <button
+                                                            onClick={() => removeDocument(index)}
+                                                            className="text-red-500 hover:text-red-700"
+                                                        >
+                                                            <X className="h-4 w-4" />
+                                                        </button>
+                                                    </li>
+                                                ))}
+                                            </ul>
+                                        </div>
+                                    )}
+                                </div>
+
+                                <div className="items-center px-4 py-3 mt-6 flex justify-center space-x-4">
                                     <button
                                         onClick={confirmTaskCompletion}
-                                        className="px-4 py-2 bg-green-600 text-white text-base font-medium rounded-md w-24 mr-2 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500"
+                                        className="px-6 py-2 bg-green-600 text-white text-base font-medium rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500"
                                     >
-                                        Yes, Complete
+                                        Complete Task
                                     </button>
                                     <button
                                         onClick={cancelTaskCompletion}
-                                        className="px-4 py-2 bg-gray-300 text-gray-800 text-base font-medium rounded-md w-24 hover:bg-gray-400 focus:outline-none focus:ring-2 focus:ring-gray-500"
+                                        className="px-6 py-2 bg-gray-300 text-gray-800 text-base font-medium rounded-md hover:bg-gray-400 focus:outline-none focus:ring-2 focus:ring-gray-500"
                                     >
                                         Cancel
                                     </button>

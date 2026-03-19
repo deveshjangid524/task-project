@@ -14,11 +14,11 @@ const TaskModal = ({ task, onClose, allTasks }) => {
         priority: task?.priority || 'Medium',
         status: task?.status || 'To Do',
         assignedTo: task?.assignedTo ? (Array.isArray(task.assignedTo) ? task.assignedTo : [task.assignedTo._id]) : [],
-        dependsOn: task?.dependsOn?.map(d => d._id || d) || [],
         estimatedHours: task?.timeEstimates?.estimatedHours || 1,
         manualDueDate: task?.scheduling?.manualDueDate
             ? new Date(task.scheduling.manualDueDate).toISOString().split('T')[0]
             : '',
+        attachments: []
     });
 
     const [users, setUsers] = useState([]);
@@ -46,6 +46,33 @@ const TaskModal = ({ task, onClose, allTasks }) => {
         setFormData({ ...formData, [e.target.name]: value });
     };
 
+    const handleFileChange = (e) => {
+        const files = Array.from(e.target.files);
+        const validFiles = files.filter(file => {
+            const maxSize = 10 * 1024 * 1024; // 10MB
+            const validTypes = [
+                'application/pdf',
+                'application/msword',
+                'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+                'application/vnd.ms-excel',
+                'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+                'application/vnd.ms-powerpoint',
+                'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+                'text/plain',
+                'image/jpeg',
+                'image/png',
+                'image/gif'
+            ];
+            return file.size <= maxSize && validTypes.includes(file.type);
+        });
+
+        if (validFiles.length !== files.length) {
+            setError('Some files were invalid. Only PDF, Word, Excel, PowerPoint, text, and image files up to 10MB are allowed.');
+        }
+
+        setFormData({ ...formData, attachments: validFiles });
+    };
+
     const handleSubmit = async (e) => {
         e.preventDefault();
         setLoading(true);
@@ -56,9 +83,12 @@ const TaskModal = ({ task, onClose, allTasks }) => {
         console.log(' Current user for task creation:', currentUser);
 
         const payload = {
-            ...formData,
-            // Add createdBy to track who assigned the task
-            createdBy: currentUser?._id,
+            title: formData.title,
+            description: formData.description,
+            category: formData.category,
+            priority: formData.priority,
+            status: formData.status,
+            assignedTo: formData.assignedTo,
             timeEstimates: { estimatedHours: Number(formData.estimatedHours) },
             scheduling: formData.manualDueDate
                 ? { manualDueDate: new Date(formData.manualDueDate) }
@@ -77,6 +107,21 @@ const TaskModal = ({ task, onClose, allTasks }) => {
                 console.log('Current user role:', JSON.parse(localStorage.getItem('user'))?.role);
                 const response = await api.post('/tasks', payload);
                 console.log('Task creation response:', response);
+                
+                // If there are attachments, upload them
+                if (formData.attachments.length > 0) {
+                    const formDataUpload = new FormData();
+                    formData.attachments.forEach(file => {
+                        formDataUpload.append('attachments', file);
+                    });
+                    formDataUpload.append('taskId', response.data._id);
+                    
+                    await api.post(`/tasks/${response.data._id}/attachments`, formDataUpload, {
+                        headers: {
+                            'Content-Type': 'multipart/form-data'
+                        }
+                    });
+                }
                 
                 // Show notification for task creation
                 showNotification('success', `Task "${payload.title}" created successfully`, 'Task Created');
@@ -245,11 +290,29 @@ const TaskModal = ({ task, onClose, allTasks }) => {
                                                 ? 'Select assignees...' 
                                                 : `${formData.assignedTo.length} member(s) selected`}
                                         </option>
-                                        {users.map(u => (
-                                            <option key={u._id} value={u._id}>
-                                                {u.name}
-                                            </option>
-                                        ))}
+                                        {users
+                                            .filter(u => {
+                                                // Get current user role
+                                                const currentUserRole = JSON.parse(localStorage.getItem('user'))?.role;
+                                                
+                                                // Team members can only assign to other team members
+                                                if (currentUserRole === 'Team Member') {
+                                                    return u.role === 'Team Member';
+                                                }
+                                                
+                                                // Project Managers can assign to Team Members and other PMs (but not Admins)
+                                                if (currentUserRole === 'Project Manager') {
+                                                    return u.role === 'Team Member' || u.role === 'Project Manager';
+                                                }
+                                                
+                                                // Admins can assign to anyone
+                                                return true;
+                                            })
+                                            .map(u => (
+                                                <option key={u._id} value={u._id}>
+                                                    {u.name} ({u.role})
+                                                </option>
+                                            ))}
                                     </select>
                                     {formData.assignedTo.length > 0 && (
                                         <p className="mt-1 text-xs text-gray-600">
@@ -291,27 +354,58 @@ const TaskModal = ({ task, onClose, allTasks }) => {
 
                             <div>
                                 <label className="block text-sm font-medium text-gray-700">
-                                    Dependencies (Ctrl+Click to select multiple)
+                                    Task Attachments
                                 </label>
-                                <select
-                                    multiple
-                                    name="dependsOn"
-                                    value={formData.dependsOn}
-                                    onChange={handleChange}
-                                    className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-primary-500 focus:border-primary-500 sm:text-sm h-32"
-                                    size="4"
-                                >
-                                    {allTasks
-                                        .filter(t => !task || t._id !== task._id)
-                                        .map((t) => (
-                                            <option key={t._id} value={t._id}>
-                                                {t.title} ({t.status})
-                                            </option>
-                                        ))}
-                                </select>
-                                <p className="mt-1 text-xs text-gray-500">
-                                    Choosing dependencies helps the AI optimize the schedule.
-                                </p>
+                                <div className="mt-1">
+                                    <div className="flex justify-center px-6 pt-5 pb-6 border-2 border-gray-300 border-dashed rounded-md">
+                                        <div className="space-y-1 text-center">
+                                            <svg
+                                                className="mx-auto h-12 w-12 text-gray-400"
+                                                stroke="currentColor"
+                                                fill="none"
+                                                viewBox="0 0 48 48"
+                                                aria-hidden="true"
+                                            >
+                                                <path
+                                                    d="M28 8H12a4 4 0 00-4 4v20m32-12v8m0 0v8a4 4 0 01-4 4H12a4 4 0 01-4-4v-4m32-4l-3.172-3.172a4 4 0 00-5.656 0L28 28M8 32l9.172-9.172a4 4 0 015.656 0L28 28m0 0l4 4m4-24h8m-4-4v8m-12 4h.02"
+                                                    strokeWidth={2}
+                                                    strokeLinecap="round"
+                                                    strokeLinejoin="round"
+                                                />
+                                            </svg>
+                                            <div className="flex text-sm text-gray-600">
+                                                <label
+                                                    htmlFor="file-upload"
+                                                    className="relative cursor-pointer rounded-md font-medium text-blue-600 hover:text-blue-500 focus-within:outline-none focus-within:ring-2 focus-within:ring-offset-2 focus-within:ring-blue-500"
+                                                >
+                                                    <span>Upload files</span>
+                                                    <input id="file-upload" name="file-upload" type="file" className="sr-only" multiple onChange={handleFileChange} />
+                                                </label>
+                                                <p className="pl-1">or drag and drop</p>
+                                            </div>
+                                            <p className="text-xs text-gray-500">
+                                                PDF, Word, Excel, PowerPoint, Images up to 10MB each
+                                            </p>
+                                        </div>
+                                    </div>
+                                    {formData.attachments.length > 0 && (
+                                        <div className="mt-2">
+                                            <p className="text-sm text-gray-600">
+                                                {formData.attachments.length} file(s) selected:
+                                            </p>
+                                            <ul className="text-xs text-gray-500 mt-1">
+                                                {formData.attachments.map((file, index) => (
+                                                    <li key={index} className="flex items-center justify-between">
+                                                        <span>{file.name}</span>
+                                                        <span className="text-gray-400 ml-2">
+                                                            ({(file.size / 1024 / 1024).toFixed(2)} MB)
+                                                        </span>
+                                                    </li>
+                                                ))}
+                                            </ul>
+                                        </div>
+                                    )}
+                                </div>
                             </div>
 
                             <div className="mt-5 sm:mt-6 sm:flex sm:flex-row-reverse">
