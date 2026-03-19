@@ -39,25 +39,13 @@ const TaskBoard = () => {
             const response = await api.get('/tasks');
             const allTasks = response.data;
             
-            console.log('=== PM FILTERING DEBUG ===');
-            console.log('User ID:', user?._id);
-            console.log('User Role:', user?.role);
-            console.log('All Tasks:', allTasks.map(t => ({ 
-                title: t.title, 
-                createdBy: t.createdBy, 
-                createdByType: typeof t.createdBy,
-                assignedTo: t.assignedTo,
-                status: t.status 
-            })));
-            
-            // Filter tasks based on user role - ORIGINAL WORKING LOGIC
+            // Filter tasks based on user role - FIXED LOGIC
             let filteredTasks;
             if (user?.role === 'Admin') {
                 // Admin sees all tasks
                 filteredTasks = allTasks;
-                console.log('Admin mode - showing all tasks:', filteredTasks.length);
             } else if (user?.role === 'Project Manager') {
-                // Project Manager sees tasks they created OR assigned to them OR assigned by them to team members
+                // Project Manager sees tasks they created OR assigned to them
                 filteredTasks = allTasks.filter(task => {
                     // Handle both single assignee and multi-assignee scenarios
                     const assignedToPM = task.assignedTo && (
@@ -69,31 +57,26 @@ const TaskBoard = () => {
                         (task.assignedTo._id && task.assignedTo._id === user._id)
                     );
                     const pmCreated = task.createdBy && (
-                    (typeof task.createdBy === 'string' && task.createdBy === user._id) ||
-                    (task.createdBy._id && task.createdBy._id === user._id)
-                );
-                    
-                    console.log(`Task "${task.title}":`);
-                    console.log(`  - createdBy: ${task.createdBy} (type: ${typeof task.createdBy})`);
-                    console.log(`  - assignedTo: ${JSON.stringify(task.assignedTo)}`);
-                    console.log(`  - assignedToPM: ${assignedToPM}`);
-                    console.log(`  - pmCreated: ${pmCreated}`);
-                    console.log(`  - visible: ${assignedToPM || pmCreated}`);
+                        (typeof task.createdBy === 'string' && task.createdBy === user._id) ||
+                        (task.createdBy._id && task.createdBy._id === user._id)
+                    );
                     
                     // PM should see tasks they created OR assigned to them
                     // This includes tasks they assigned to team members for oversight
                     return assignedToPM || pmCreated;
                 });
-                console.log('PM mode - filtered tasks:', filteredTasks.length);
             } else {
                 // Team Member sees only tasks assigned to them (handle multi-assignee)
                 filteredTasks = allTasks.filter(task => 
                     task.assignedTo && (
-                        (Array.isArray(task.assignedTo) && task.assignedTo.some(assignee => assignee._id === user._id)) ||
-                        (task.assignedTo._id === user._id)
+                        (Array.isArray(task.assignedTo) && task.assignedTo.some(assignee => 
+                            (typeof assignee === 'string' && assignee === user._id) ||
+                            (assignee._id && assignee._id === user._id)
+                        )) ||
+                        (typeof task.assignedTo === 'string' && task.assignedTo === user._id) ||
+                        (task.assignedTo._id && task.assignedTo._id === user._id)
                     )
                 );
-                console.log('Team Member mode - filtered tasks:', filteredTasks.length);
             }
             
             setTasks(filteredTasks);
@@ -106,6 +89,10 @@ const TaskBoard = () => {
 
     const handleQuickStatusChange = async (taskId, newStatus) => {
         try {
+            // Find the task to check if it's being completed
+            const task = tasks.find(t => t._id === taskId);
+            const isCompleting = task?.status !== 'Completed' && newStatus === 'Completed';
+            
             // Optimistic UI update
             setTasks(prevTasks => 
                 prevTasks.map(task => 
@@ -118,16 +105,26 @@ const TaskBoard = () => {
             // Backend update
             await api.put(`/tasks/${taskId}`, { status: newStatus });
             
-            // Show notification
-            const statusMessages = {
-                'In Progress': 'Task started',
-                'In Review': 'Task submitted for review',
-                'Completed': 'Task completed',
-                'Blocked': 'Task blocked',
-                'To Do': 'Task reopened'
-            };
-            
-            showNotification('success', statusMessages[newStatus] || 'Status updated', 'Task Updated');
+            // Add rewards if task is completed
+            if (isCompleting) {
+                if (window.addRewards) {
+                    window.addRewards(100);
+                }
+                
+                // Show special completion notification
+                showNotification('success', '🎉 Task completed! +100 reward points earned!', 'Task Completed & Rewarded!');
+            } else {
+                // Show regular notification
+                const statusMessages = {
+                    'In Progress': 'Task started',
+                    'In Review': 'Task submitted for review',
+                    'Completed': 'Task completed',
+                    'Blocked': 'Task blocked',
+                    'To Do': 'Task reopened'
+                };
+                
+                showNotification('success', statusMessages[newStatus] || 'Status updated', 'Task Updated');
+            }
             
         } catch (error) {
             console.error('Error updating task status:', error);
@@ -183,6 +180,9 @@ const TaskBoard = () => {
         }
 
         if (activeTask.status !== newStatus) {
+            // Check if task is being completed
+            const isCompleting = activeTask.status !== 'Completed' && newStatus === 'Completed';
+            
             // Optimistic UI update
             setTasks((prevTasks) =>
                 prevTasks.map(t => t._id === activeId ? { ...t, status: newStatus } : t)
@@ -191,6 +191,16 @@ const TaskBoard = () => {
             // Backend update
             try {
                 await api.put(`/tasks/${activeId}`, { status: newStatus });
+                
+                // Add rewards if task is completed
+                if (isCompleting) {
+                    if (window.addRewards) {
+                        window.addRewards(100);
+                    }
+                    
+                    // Show special completion notification
+                    showNotification('success', '🎉 Task completed! +100 reward points earned!', 'Task Completed & Rewarded!');
+                }
             } catch (error) {
                 console.error('Error updating task status', error);
                 // Revert on failure

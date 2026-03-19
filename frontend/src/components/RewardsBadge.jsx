@@ -50,7 +50,7 @@ const RewardsBadge = () => {
     }, [rewards]);
 
     return (
-        <div className="relative">
+        <div className="relative group">
             <div className="flex items-center space-x-2 bg-gradient-to-r from-yellow-400 to-orange-500 text-white px-3 py-1.5 rounded-full shadow-lg hover:shadow-xl transition-all duration-300 cursor-pointer">
                 <Trophy className="w-4 h-4" />
                 <span className="font-bold text-sm">{rewards}</span>
@@ -60,12 +60,12 @@ const RewardsBadge = () => {
             {/* Animation overlay */}
             {showAnimation && (
                 <div className="absolute -top-8 -right-2 bg-green-500 text-white px-2 py-1 rounded-lg text-xs font-bold animate-bounce">
-                    +{rewards % 100 || 100}!
+                    +100!
                 </div>
             )}
             
             {/* Tooltip */}
-            <div className="absolute bottom-full right-0 mb-2 hidden group-hover:block">
+            <div className="absolute bottom-full right-0 mb-2 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50">
                 <div className="bg-gray-800 text-white text-xs rounded py-1 px-2 whitespace-nowrap">
                     <div className="font-bold">Reward Points</div>
                     <div>Complete tasks to earn points!</div>

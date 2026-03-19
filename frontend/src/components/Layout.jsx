@@ -93,6 +93,7 @@ const Layout = () => {
                     <div className="flex justify-between items-center">
                         <div className="flex-1"></div>
                         <div className="flex items-center space-x-4">
+                            <RewardsBadge />
                             <ChatSystem />
                             <NotificationSystem />
                         </div>
