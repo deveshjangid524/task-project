@@ -34,7 +34,12 @@ const TaskBoard = () => {
     const [completedTasks, setCompletedTasks] = useState(new Set());
 
     useEffect(() => {
-        fetchTasks();
+        if (user && user._id) {
+            fetchTasks();
+        } else {
+            setTasks([]);
+            setLoading(false);
+        }
     }, [user]); // Refetch tasks when user changes
 
     const addRewardsSafely = (taskId, points) => {
@@ -65,16 +70,20 @@ const TaskBoard = () => {
 
     const fetchTasks = async () => {
         try {
+            // Wait for user data to be available
+            if (!user || !user._id) {
+                setTasks([]);
+                setLoading(false);
+                return;
+            }
+            
             const response = await api.get('/tasks');
             const allTasks = response.data;
             
             // Filter tasks based on user role - FIXED LOGIC with null checks
             let filteredTasks = [];
             
-            if (!user) {
-                // No user logged in, show no tasks
-                filteredTasks = [];
-            } else if (user.role === 'Admin') {
+            if (user.role === 'Admin') {
                 // Admin sees all tasks
                 filteredTasks = allTasks;
             } else if (user.role === 'Project Manager') {
@@ -84,12 +93,18 @@ const TaskBoard = () => {
                     if (!task) return false;
                     
                     // PM sees any task they created, regardless of who it's assigned to
+                    // Handle both string and ObjectId comparisons
                     const pmCreated = task.createdBy && (
                         (typeof task.createdBy === 'string' && task.createdBy === user._id) ||
-                        (task.createdBy._id && task.createdBy._id === user._id)
+                        (task.createdBy._id && task.createdBy._id.toString() === user._id) ||
+                        (task.createdBy === user._id)
                     );
                     
-                    return pmCreated;
+                    // Fallback: If createdBy is undefined, show task to PM for now
+                    // This handles cases where createdBy wasn't set properly
+                    const showTask = pmCreated || !task.createdBy;
+                    
+                    return showTask;
                 });
             } else {
                 // Team Member sees only tasks assigned to them (handle multi-assignee)
@@ -109,7 +124,7 @@ const TaskBoard = () => {
             
             setTasks(filteredTasks);
         } catch (error) {
-            console.error('Error fetching tasks', error);
+            console.error('Error fetching tasks:', error);
             setTasks([]); // Set empty array on error
         } finally {
             setLoading(false);
@@ -320,6 +335,7 @@ const TaskBoard = () => {
                     </div>
                 </div>
                 
+                {(user?.role === 'Admin' || user?.role === 'Project Manager') && (
                 <button
                     onClick={() => handleOpenModal()}
                     className="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
@@ -327,6 +343,7 @@ const TaskBoard = () => {
                     <Plus className="-ml-1 mr-2 h-5 w-5" aria-hidden="true" />
                     New Task
                 </button>
+            )}
             </div>
             
             {/* Task Count Summary */}
