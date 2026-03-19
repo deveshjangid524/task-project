@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Clear Service Worker</title>
+</head>
+<body>
+    <h1>Clearing Service Worker...</h1>
+    <div id="status"></div>
+    
+    <script>
+        const statusDiv = document.getElementById('status');
+        
+        // Unregister all service workers
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.getRegistrations().then(function(registrations) {
+                statusDiv.innerHTML += '<p>Found ' + registrations.length + ' service workers</p>';
+                
+                let unregisterPromises = registrations.map(registration => {
+                    statusDiv.innerHTML += '<p>Unregistering: ' + registration.scope + '</p>';
+                    return registration.unregister();
+                });
+                
+                Promise.all(unregisterPromises).then(function() {
+                    statusDiv.innerHTML += '<p>All service workers unregistered!</p>';
+                    
+                    // Clear all caches
+                    if ('caches' in window) {
+                        caches.keys().then(function(cacheNames) {
+                            statusDiv.innerHTML += '<p>Found ' + cacheNames.length + ' caches</p>';
+                            
+                            cacheNames.forEach(function(cacheName) {
+                                statusDiv.innerHTML += '<p>Deleting cache: ' + cacheName + '</p>';
+                                caches.delete(cacheName);
+                            });
+                            
+                            statusDiv.innerHTML += '<p>All caches cleared!</p>';
+                            statusDiv.innerHTML += '<p><strong>You can now close this window and restart your app.</strong></p>';
+                        });
+                    }
+                });
+            }).catch(function(error) {
+                statusDiv.innerHTML += '<p>Error: ' + error + '</p>';
+            });
+        } else {
+            statusDiv.innerHTML = '<p>Service workers not supported</p>';
+        }
+    </script>
+</body>
+</html>
