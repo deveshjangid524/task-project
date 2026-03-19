@@ -6,37 +6,105 @@ const { calculateOptimizedSchedule } = require('../utils/aiScheduler');
 // @access  Private
 const createTask = async (req, res) => {
     try {
-        console.log('Creating task:', req.body);
+        console.log("=== TASK CREATION START ===");
+        console.log("REQ.USER:", req.user);
+        console.log("REQ.BODY:", req.body);
+        
+        // CRITICAL: Validate req.user exists
+        if (!req.user) {
+            console.log('ERROR: req.user is null or undefined');
+            return res.status(401).json({ message: 'User not authenticated - req.user is null' });
+        }
+        
+        if (!req.user._id) {
+            console.log('ERROR: req.user._id is null or undefined');
+            return res.status(401).json({ message: 'User ID not found in req.user' });
+        }
+        
         console.log('User role:', req.user.role);
         console.log('User ID:', req.user._id);
-        const { title, description, category, priority, assignedTo, dependsOn, timeEstimates, scheduling } = req.body;
         
+        const { title, description, category, priority, assignedTo, dependsOn, timeEstimates, scheduling, attachmentLinks } = req.body;
+        
+        // Validate required fields
+        if (!title) {
+            return res.status(400).json({ message: 'Title is required' });
+        }
+        
+        if (!timeEstimates || !timeEstimates.estimatedHours) {
+            return res.status(400).json({ message: 'Estimated hours is required' });
+        }
+        
+        // Check assignment permissions
         if (assignedTo && !['Admin', 'Project Manager'].includes(req.user.role)) {
             console.log('Task assignment denied for user role:', req.user.role);
             return res.status(403).json({ message: 'Only Admin or Project Manager can assign tasks' });
         }
-
-        const task = new Task({
+        
+        // Create task object with GUARANTEED createdBy ObjectId
+        const taskData = {
             title,
             description,
             category,
-            priority,
+            priority: priority || 'Medium',
             assignedTo: assignedTo || null,
             dependsOn: dependsOn || [],
             timeEstimates: timeEstimates || { estimatedHours: 1 },
             scheduling: scheduling || {},
+            createdBy: req.user._id, // This is now guaranteed to be a valid ObjectId
+            attachmentLinks: attachmentLinks ? attachmentLinks.map(link => ({
+                url: link,
+                addedBy: req.user._id
+            })) : [],
             historyLogs: [{
                 action: 'Created',
                 changedBy: req.user._id,
                 details: 'Task created'
             }]
-        });
-
+        };
+        
+        console.log('Creating task with data:', taskData);
+        console.log('createdBy type:', typeof taskData.createdBy);
+        console.log('createdBy value:', taskData.createdBy);
+        
+        // Try to create and save the task
+        console.log('Creating task instance...');
+        const task = new Task(taskData);
+        console.log('Task instance created:', task);
+        
+        console.log('Attempting to save task...');
         const createdTask = await task.save();
-        res.status(201).json(createdTask);
+        console.log('Task saved successfully:', createdTask._id);
+        
+        // Populate and return the task
+        const populatedTask = await Task.findById(createdTask._id)
+            .populate('assignedTo', 'name email')
+            .populate('createdBy', 'name email role');
+        
+        console.log('Task created and populated successfully');
+        res.status(201).json(populatedTask);
+        
     } catch (error) {
-        console.error(error);
-        res.status(500).json({ message: 'Server Error', error: error.message });
+        console.error("=== FULL ERROR DETAILS ===");
+        console.error("Error name:", error.name);
+        console.error("Error message:", error.message);
+        console.error("Error stack:", error.stack);
+        console.error("Error occurred at:", new Date().toISOString());
+        
+        // Check if this is a validation error
+        if (error.name === 'ValidationError') {
+            console.error("Validation errors:", Object.values(error.errors));
+            return res.status(400).json({
+                message: 'Validation Error',
+                errors: Object.values(error.errors).map(err => err.message)
+            });
+        }
+        
+        res.status(500).json({
+            message: 'Server Error',
+            error: error.message,
+            stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
+        });
     }
 };
 

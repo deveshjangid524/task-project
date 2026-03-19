@@ -19,6 +19,11 @@ const taskSchema = new mongoose.Schema({
         aiOptimizedDueDate: { type: Date },
         isRescheduledByAI: { type: Boolean, default: false }
     },
+    attachmentLinks: [{
+        url: { type: String, required: true },
+        addedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+        addedAt: { type: Date, default: Date.now }
+    }],
     historyLogs: [{
         action: { type: String },
         changedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },

@@ -18,7 +18,7 @@ const TaskModal = ({ task, onClose, allTasks }) => {
         manualDueDate: task?.scheduling?.manualDueDate
             ? new Date(task.scheduling.manualDueDate).toISOString().split('T')[0]
             : '',
-        attachments: []
+        attachmentLinks: []
     });
 
     const [users, setUsers] = useState([]);
@@ -46,31 +46,32 @@ const TaskModal = ({ task, onClose, allTasks }) => {
         setFormData({ ...formData, [e.target.name]: value });
     };
 
-    const handleFileChange = (e) => {
-        const files = Array.from(e.target.files);
-        const validFiles = files.filter(file => {
-            const maxSize = 10 * 1024 * 1024; // 10MB
-            const validTypes = [
-                'application/pdf',
-                'application/msword',
-                'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-                'application/vnd.ms-excel',
-                'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-                'application/vnd.ms-powerpoint',
-                'application/vnd.openxmlformats-officedocument.presentationml.presentation',
-                'text/plain',
-                'image/jpeg',
-                'image/png',
-                'image/gif'
-            ];
-            return file.size <= maxSize && validTypes.includes(file.type);
-        });
-
-        if (validFiles.length !== files.length) {
-            setError('Some files were invalid. Only PDF, Word, Excel, PowerPoint, text, and image files up to 10MB are allowed.');
+    const handleLinkAdd = () => {
+        const linkInput = document.getElementById('attachment-link');
+        const link = linkInput.value.trim();
+        
+        if (link) {
+            // Basic URL validation
+            const urlPattern = /^(https?:\/\/)?([\da-z\.-]+)\.([a-z\.]{2,6})([\/\w \.-]*)*\/?$/;
+            if (!urlPattern.test(link)) {
+                setError('Please enter a valid URL (e.g., https://example.com/document.pdf)');
+                return;
+            }
+            
+            setFormData({ 
+                ...formData, 
+                attachmentLinks: [...formData.attachmentLinks, link] 
+            });
+            linkInput.value = '';
+            setError('');
         }
+    };
 
-        setFormData({ ...formData, attachments: validFiles });
+    const handleLinkRemove = (index) => {
+        setFormData({ 
+            ...formData, 
+            attachmentLinks: formData.attachmentLinks.filter((_, i) => i !== index) 
+        });
     };
 
     const handleSubmit = async (e) => {
@@ -92,7 +93,8 @@ const TaskModal = ({ task, onClose, allTasks }) => {
             timeEstimates: { estimatedHours: Number(formData.estimatedHours) },
             scheduling: formData.manualDueDate
                 ? { manualDueDate: new Date(formData.manualDueDate) }
-                : {}
+                : {},
+            createdBy: currentUser?._id
         };
 
         console.log('Submitting task payload:', payload);
@@ -108,18 +110,10 @@ const TaskModal = ({ task, onClose, allTasks }) => {
                 const response = await api.post('/tasks', payload);
                 console.log('Task creation response:', response);
                 
-                // If there are attachments, upload them
-                if (formData.attachments.length > 0) {
-                    const formDataUpload = new FormData();
-                    formData.attachments.forEach(file => {
-                        formDataUpload.append('attachments', file);
-                    });
-                    formDataUpload.append('taskId', response.data._id);
-                    
-                    await api.post(`/tasks/${response.data._id}/attachments`, formDataUpload, {
-                        headers: {
-                            'Content-Type': 'multipart/form-data'
-                        }
+                // Save attachment links to task
+                if (formData.attachmentLinks.length > 0) {
+                    await api.put(`/tasks/${response.data._id}`, {
+                        attachmentLinks: formData.attachmentLinks
                     });
                 }
                 
@@ -354,52 +348,65 @@ const TaskModal = ({ task, onClose, allTasks }) => {
 
                             <div>
                                 <label className="block text-sm font-medium text-gray-700">
-                                    Task Attachments
+                                    Attachment Links
                                 </label>
                                 <div className="mt-1">
-                                    <div className="flex justify-center px-6 pt-5 pb-6 border-2 border-gray-300 border-dashed rounded-md">
-                                        <div className="space-y-1 text-center">
-                                            <svg
-                                                className="mx-auto h-12 w-12 text-gray-400"
-                                                stroke="currentColor"
-                                                fill="none"
-                                                viewBox="0 0 48 48"
-                                                aria-hidden="true"
-                                            >
-                                                <path
-                                                    d="M28 8H12a4 4 0 00-4 4v20m32-12v8m0 0v8a4 4 0 01-4 4H12a4 4 0 01-4-4v-4m32-4l-3.172-3.172a4 4 0 00-5.656 0L28 28M8 32l9.172-9.172a4 4 0 015.656 0L28 28m0 0l4 4m4-24h8m-4-4v8m-12 4h.02"
-                                                    strokeWidth={2}
-                                                    strokeLinecap="round"
-                                                    strokeLinejoin="round"
-                                                />
-                                            </svg>
-                                            <div className="flex text-sm text-gray-600">
-                                                <label
-                                                    htmlFor="file-upload"
-                                                    className="relative cursor-pointer rounded-md font-medium text-blue-600 hover:text-blue-500 focus-within:outline-none focus-within:ring-2 focus-within:ring-offset-2 focus-within:ring-blue-500"
-                                                >
-                                                    <span>Upload files</span>
-                                                    <input id="file-upload" name="file-upload" type="file" className="sr-only" multiple onChange={handleFileChange} />
-                                                </label>
-                                                <p className="pl-1">or drag and drop</p>
-                                            </div>
-                                            <p className="text-xs text-gray-500">
-                                                PDF, Word, Excel, PowerPoint, Images up to 10MB each
-                                            </p>
-                                        </div>
+                                    <div className="flex space-x-2">
+                                        <input
+                                            type="url"
+                                            id="attachment-link"
+                                            placeholder="https://example.com/document.pdf"
+                                            className="flex-1 px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                                            onKeyPress={(e) => {
+                                                if (e.key === 'Enter') {
+                                                    e.preventDefault();
+                                                    handleLinkAdd();
+                                                }
+                                            }}
+                                        />
+                                        <button
+                                            type="button"
+                                            onClick={handleLinkAdd}
+                                            className="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                                        >
+                                            Add Link
+                                        </button>
                                     </div>
-                                    {formData.attachments.length > 0 && (
-                                        <div className="mt-2">
-                                            <p className="text-sm text-gray-600">
-                                                {formData.attachments.length} file(s) selected:
+                                    <p className="mt-1 text-xs text-gray-500">
+                                        Add links to external documents (Google Drive, Dropbox, etc.)
+                                    </p>
+                                    
+                                    {formData.attachmentLinks.length > 0 && (
+                                        <div className="mt-3">
+                                            <p className="text-sm text-gray-600 mb-2">
+                                                Added Links ({formData.attachmentLinks.length}):
                                             </p>
-                                            <ul className="text-xs text-gray-500 mt-1">
-                                                {formData.attachments.map((file, index) => (
-                                                    <li key={index} className="flex items-center justify-between">
-                                                        <span>{file.name}</span>
-                                                        <span className="text-gray-400 ml-2">
-                                                            ({(file.size / 1024 / 1024).toFixed(2)} MB)
-                                                        </span>
+                                            <ul className="space-y-2">
+                                                {formData.attachmentLinks.map((link, index) => (
+                                                    <li key={index} className="flex items-center justify-between p-2 bg-gray-50 rounded">
+                                                        <div className="flex items-center flex-1 min-w-0">
+                                                            <svg className="h-4 w-4 text-blue-500 mr-2 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
+                                                            </svg>
+                                                            <a 
+                                                                href={link} 
+                                                                target="_blank" 
+                                                                rel="noopener noreferrer"
+                                                                className="text-sm text-blue-600 hover:text-blue-800 truncate"
+                                                                title={link}
+                                                            >
+                                                                {link}
+                                                            </a>
+                                                        </div>
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => handleLinkRemove(index)}
+                                                            className="ml-2 text-red-500 hover:text-red-700"
+                                                        >
+                                                            <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                                            </svg>
+                                                        </button>
                                                     </li>
                                                 ))}
                                             </ul>
