@@ -98,24 +98,14 @@ const TaskModal = ({ task, onClose, allTasks }) => {
             attachmentLinks: formData.attachmentLinks
         };
 
-        console.log('=== TASK CREATION PAYLOAD ===');
-        console.log('Payload:', payload);
-        console.log('assignedTo value:', formData.assignedTo);
-        console.log('assignedTo type:', typeof formData.assignedTo);
-        console.log('currentUser:', currentUser);
-
-        console.log('Submitting task payload:', payload);
-        console.log('User authentication:', currentUser);
-
+        
+        
         try {
             if (task) {
                 await api.put(`/tasks/${task._id}`, payload);
                 showNotification('success', 'Task updated successfully', 'Task Updated');
             } else {
-                console.log('Making POST request to /tasks');
-                console.log('Current user role:', JSON.parse(localStorage.getItem('user'))?.role);
                 const response = await api.post('/tasks', payload);
-                console.log('Task creation response:', response);
                 
                 // Save attachment links to task
                 if (formData.attachmentLinks.length > 0) {

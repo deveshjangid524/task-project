@@ -6,23 +6,14 @@ const { calculateOptimizedSchedule } = require('../utils/aiScheduler');
 // @access  Private
 const createTask = async (req, res) => {
     try {
-        console.log("=== TASK CREATION START ===");
-        console.log("REQ.USER:", req.user);
-        console.log("REQ.BODY:", req.body);
-        
         // CRITICAL: Validate req.user exists
         if (!req.user) {
-            console.log('ERROR: req.user is null or undefined');
-            return res.status(401).json({ message: 'User not authenticated - req.user is null' });
+            return res.status(401).json({ message: 'User not authenticated' });
         }
         
         if (!req.user._id) {
-            console.log('ERROR: req.user._id is null or undefined');
-            return res.status(401).json({ message: 'User ID not found in req.user' });
+            return res.status(401).json({ message: 'User ID not found' });
         }
-        
-        console.log('User role:', req.user.role);
-        console.log('User ID:', req.user._id);
         
         const { title, description, category, priority, assignedTo, dependsOn, timeEstimates, scheduling, attachmentLinks } = req.body;
         
@@ -63,25 +54,15 @@ const createTask = async (req, res) => {
             }]
         };
         
-        console.log('Creating task with data:', taskData);
-        console.log('createdBy type:', typeof taskData.createdBy);
-        console.log('createdBy value:', taskData.createdBy);
-        
-        // Try to create and save the task
-        console.log('Creating task instance...');
+        // Create and save the task
         const task = new Task(taskData);
-        console.log('Task instance created:', task);
-        
-        console.log('Attempting to save task...');
         const createdTask = await task.save();
-        console.log('Task saved successfully:', createdTask._id);
         
         // Populate and return the task
         const populatedTask = await Task.findById(createdTask._id)
             .populate('assignedTo', 'name email')
             .populate('createdBy', 'name email role');
         
-        console.log('Task created and populated successfully');
         res.status(201).json(populatedTask);
         
     } catch (error) {

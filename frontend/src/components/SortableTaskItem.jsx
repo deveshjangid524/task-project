@@ -1,7 +1,7 @@
 import React from 'react';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { Calendar, Clock } from 'lucide-react';
+import { Calendar, Clock, Play, Eye, AlertCircle, CheckCircle } from 'lucide-react';
 
 const priorityColors = {
     Low: 'bg-green-100 text-green-800 border-green-200',
@@ -10,7 +10,7 @@ const priorityColors = {
     Critical: 'bg-red-100 text-red-800 border-red-200',
 };
 
-const SortableTaskItem = ({ task, onClick }) => {
+const SortableTaskItem = ({ task, onClick, onStatusChange }) => {
     const {
         attributes,
         listeners,
@@ -31,6 +31,79 @@ const SortableTaskItem = ({ task, onClick }) => {
         if (!dateString) return '';
         const date = new Date(dateString);
         return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+    };
+
+    const handleStatusChange = (e, newStatus) => {
+        e.stopPropagation(); // Prevent opening task modal
+        if (onStatusChange) {
+            onStatusChange(task._id, newStatus);
+        }
+    };
+
+    const getQuickActions = () => {
+        switch (task.status) {
+            case 'To Do':
+                return (
+                    <button
+                        onClick={(e) => handleStatusChange(e, 'In Progress')}
+                        className="p-1 text-green-600 hover:bg-green-50 rounded"
+                        title="Start Task"
+                    >
+                        <Play className="w-4 h-4" />
+                    </button>
+                );
+            case 'In Progress':
+                return (
+                    <div className="flex space-x-1">
+                        <button
+                            onClick={(e) => handleStatusChange(e, 'In Review')}
+                            className="p-1 text-blue-600 hover:bg-blue-50 rounded"
+                            title="Submit for Review"
+                        >
+                            <Eye className="w-4 h-4" />
+                        </button>
+                        <button
+                            onClick={(e) => handleStatusChange(e, 'Blocked')}
+                            className="p-1 text-red-600 hover:bg-red-50 rounded"
+                            title="Mark as Blocked"
+                        >
+                            <AlertCircle className="w-4 h-4" />
+                        </button>
+                    </div>
+                );
+            case 'In Review':
+                return (
+                    <button
+                        onClick={(e) => handleStatusChange(e, 'Completed')}
+                        className="p-1 text-green-600 hover:bg-green-50 rounded"
+                        title="Complete Task"
+                    >
+                        <CheckCircle className="w-4 h-4" />
+                    </button>
+                );
+            case 'Blocked':
+                return (
+                    <button
+                        onClick={(e) => handleStatusChange(e, 'In Progress')}
+                        className="p-1 text-yellow-600 hover:bg-yellow-50 rounded"
+                        title="Unblock Task"
+                    >
+                        <Play className="w-4 h-4" />
+                    </button>
+                );
+            case 'Completed':
+                return (
+                    <button
+                        onClick={(e) => handleStatusChange(e, 'In Progress')}
+                        className="p-1 text-gray-600 hover:bg-gray-50 rounded"
+                        title="Reopen Task"
+                    >
+                        <Play className="w-4 h-4" />
+                    </button>
+                );
+            default:
+                return null;
+        }
     };
 
     return (
@@ -75,12 +148,16 @@ const SortableTaskItem = ({ task, onClick }) => {
                     </div>
                 )}
 
-                {(task.scheduling?.aiOptimizedDueDate || task.scheduling?.manualDueDate) && (
-                    <div className={`flex items-center text-xs ${task.scheduling.isRescheduledByAI ? 'text-primary-600 font-medium' : 'text-gray-500'}`}>
-                        <Calendar className="w-3 h-3 mr-1" />
-                        {formatDate(task.scheduling.aiOptimizedDueDate || task.scheduling.manualDueDate)}
-                    </div>
-                )}
+                <div className="flex items-center space-x-1">
+                    {getQuickActions()}
+                    
+                    {(task.scheduling?.aiOptimizedDueDate || task.scheduling?.manualDueDate) && (
+                        <div className={`flex items-center text-xs ${task.scheduling.isRescheduledByAI ? 'text-primary-600 font-medium' : 'text-gray-500'}`}>
+                            <Calendar className="w-3 h-3 mr-1" />
+                            {formatDate(task.scheduling.aiOptimizedDueDate || task.scheduling.manualDueDate)}
+                        </div>
+                    )}
+                </div>
             </div>
         </div>
     );

@@ -4,6 +4,7 @@ import { useAuth } from '../context/AuthContext';
 import { LayoutDashboard, Users, UserCircle, LogOut, Briefcase, FileText } from 'lucide-react';
 import NotificationSystem from './NotificationSystem';
 import ChatSystem from './ChatSystem';
+import RewardsBadge from './RewardsBadge';
 
 const Layout = () => {
     const { user, logout } = useAuth();

@@ -18,6 +18,7 @@ import api from '../services/api';
 import { Plus, Filter, User, Users } from 'lucide-react';
 import TaskModal from '../components/TaskModal';
 import { useAuth } from '../context/AuthContext';
+import { showNotification } from '../components/NotificationSystem';
 
 const COLUMNS = ['To Do', 'In Progress', 'In Review', 'Completed', 'Blocked'];
 
@@ -35,63 +36,103 @@ const TaskBoard = () => {
 
     const fetchTasks = async () => {
         try {
-            console.log('=== FETCHING TASKS ===');
-            console.log('Current user:', user);
             const response = await api.get('/tasks');
             const allTasks = response.data;
-            console.log('All tasks from API:', allTasks);
-            console.log('Number of tasks:', allTasks.length);
             
-            // Filter tasks based on user role - COMMON SENSE APPROACH
+            console.log('=== PM FILTERING DEBUG ===');
+            console.log('User ID:', user?._id);
+            console.log('User Role:', user?.role);
+            console.log('All Tasks:', allTasks.map(t => ({ 
+                title: t.title, 
+                createdBy: t.createdBy, 
+                createdByType: typeof t.createdBy,
+                assignedTo: t.assignedTo,
+                status: t.status 
+            })));
+            
+            // Filter tasks based on user role - ORIGINAL WORKING LOGIC
             let filteredTasks;
             if (user?.role === 'Admin') {
                 // Admin sees all tasks
                 filteredTasks = allTasks;
-                console.log('Admin mode - showing all tasks');
+                console.log('Admin mode - showing all tasks:', filteredTasks.length);
             } else if (user?.role === 'Project Manager') {
-                // Project Manager sees:
-                // 1. Tasks they created
-                // 2. Tasks assigned to them
-                // 3. Tasks they assigned to others (their team members)
+                // Project Manager sees tasks they created OR assigned to them OR assigned by them to team members
                 filteredTasks = allTasks.filter(task => {
-                    // Check if task is assigned to PM
+                    // Handle both single assignee and multi-assignee scenarios
                     const assignedToPM = task.assignedTo && (
-                        (Array.isArray(task.assignedTo) && task.assignedTo.some(assignee => assignee._id === user._id)) ||
-                        (task.assignedTo._id === user._id)
+                        (Array.isArray(task.assignedTo) && task.assignedTo.some(assignee => 
+                            (typeof assignee === 'string' && assignee === user._id) ||
+                            (assignee._id && assignee._id === user._id)
+                        )) ||
+                        (typeof task.assignedTo === 'string' && task.assignedTo === user._id) ||
+                        (task.assignedTo._id && task.assignedTo._id === user._id)
                     );
+                    const pmCreated = task.createdBy && (
+                    (typeof task.createdBy === 'string' && task.createdBy === user._id) ||
+                    (task.createdBy._id && task.createdBy._id === user._id)
+                );
                     
-                    // Check if PM created the task
-                    const pmCreated = task.createdBy && task.createdBy._id === user._id;
+                    console.log(`Task "${task.title}":`);
+                    console.log(`  - createdBy: ${task.createdBy} (type: ${typeof task.createdBy})`);
+                    console.log(`  - assignedTo: ${JSON.stringify(task.assignedTo)}`);
+                    console.log(`  - assignedToPM: ${assignedToPM}`);
+                    console.log(`  - pmCreated: ${pmCreated}`);
+                    console.log(`  - visible: ${assignedToPM || pmCreated}`);
                     
-                    // Check if PM assigned the task (this was missing!)
-                    const pmAssigned = task.createdBy && task.createdBy._id === user._id;
-                    
-                    // COMMON SENSE: PM should see tasks they created OR assigned to them OR assigned by them
-                    const shouldShow = assignedToPM || pmCreated || pmAssigned;
-                    
-                    console.log(`Task "${task.title}": assignedToPM=${assignedToPM}, pmCreated=${pmCreated}, pmAssigned=${pmAssigned}, shouldShow=${shouldShow}`);
-                    return shouldShow;
+                    // PM should see tasks they created OR assigned to them
+                    // This includes tasks they assigned to team members for oversight
+                    return assignedToPM || pmCreated;
                 });
                 console.log('PM mode - filtered tasks:', filteredTasks.length);
             } else {
                 // Team Member sees only tasks assigned to them (handle multi-assignee)
-                filteredTasks = allTasks.filter(task => {
-                    const isAssigned = task.assignedTo && (
+                filteredTasks = allTasks.filter(task => 
+                    task.assignedTo && (
                         (Array.isArray(task.assignedTo) && task.assignedTo.some(assignee => assignee._id === user._id)) ||
                         (task.assignedTo._id === user._id)
-                    );
-                    console.log(`Task "${task.title}": isAssigned=${isAssigned}`);
-                    return isAssigned;
-                });
+                    )
+                );
                 console.log('Team Member mode - filtered tasks:', filteredTasks.length);
             }
             
-            console.log('Final filtered tasks:', filteredTasks);
             setTasks(filteredTasks);
         } catch (error) {
             console.error('Error fetching tasks', error);
         } finally {
             setLoading(false);
+        }
+    };
+
+    const handleQuickStatusChange = async (taskId, newStatus) => {
+        try {
+            // Optimistic UI update
+            setTasks(prevTasks => 
+                prevTasks.map(task => 
+                    task._id === taskId 
+                        ? { ...task, status: newStatus }
+                        : task
+                )
+            );
+
+            // Backend update
+            await api.put(`/tasks/${taskId}`, { status: newStatus });
+            
+            // Show notification
+            const statusMessages = {
+                'In Progress': 'Task started',
+                'In Review': 'Task submitted for review',
+                'Completed': 'Task completed',
+                'Blocked': 'Task blocked',
+                'To Do': 'Task reopened'
+            };
+            
+            showNotification('success', statusMessages[newStatus] || 'Status updated', 'Task Updated');
+            
+        } catch (error) {
+            console.error('Error updating task status:', error);
+            // Revert on error
+            fetchTasks();
         }
     };
 
@@ -107,7 +148,14 @@ const TaskBoard = () => {
     );
 
     const getTasksByStatus = (status) => {
-        return filteredTasks.filter((task) => task.status === status);
+        // Try both exact match and case-insensitive match
+        const exactMatch = tasks.filter(task => task.status === status);
+        const caseInsensitiveMatch = tasks.filter(task => task.status && task.status.toLowerCase() === status.toLowerCase());
+        
+        // Use case-insensitive match as fallback
+        const tasksByStatus = exactMatch.length > 0 ? exactMatch : caseInsensitiveMatch;
+        
+        return tasksByStatus;
     };
 
     const handleDragEnd = async (event) => {
@@ -265,6 +313,7 @@ const TaskBoard = () => {
                                 title={col}
                                 tasks={getTasksByStatus(col)}
                                 onTaskClick={handleOpenModal}
+                                onStatusChange={handleQuickStatusChange}
                             />
                         ))}
                     </DndContext>
