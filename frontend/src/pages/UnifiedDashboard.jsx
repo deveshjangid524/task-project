@@ -185,71 +185,24 @@ const UnifiedDashboard = () => {
                 // But only show task details for tasks PM created/assigned
                 if (user?.role === 'Project Manager') {
                     teamMembersData.forEach(member => {
-                        // Group tasks by who assigned them (to show PM assignment patterns)
                         const tasksByAssigner = {};
+
                         member.tasks.forEach(task => {
-                            
-                            // Handle different assignment scenarios
                             let assignerId, assignerName, assignerRole;
-                            
-                            if (user?.role === 'Admin') {
-                                // For Admin, show as "System Assigned" if no creator found
-                                assignerId = 'system';
-                                assignerName = 'System Assigned';
-                                assignerRole = 'System';
-                            } else if (user?.role === 'Project Manager') {
-                                // For PM, check if they created or assigned this task
-                                const pmCreated = task.createdBy && task.createdBy._id === user._id;
-                                const pmAssigned = task.assignedTo && task.assignedTo._id === user._id;
-                                
-                                if (pmCreated || pmAssigned) {
-                                    // PM can see details - show assigner as PM
-                                    assignerId = user._id;
-                                    assignerName = user.name;
-                                    assignerRole = 'Project Manager';
-                                } else {
-                                    // Task created/assigned by someone else - PM can't see details
-                                    assignerId = 'restricted';
-                                    assignerName = 'Restricted Access';
-                                    assignerRole = 'Restricted';
-                                }
+
+                            const pmCreated = task.createdBy && task.createdBy._id === user._id;
+                            const pmAssigned = task.assignedTo && task.assignedTo._id === user._id;
+
+                            if (pmCreated || pmAssigned) {
+                                assignerId = user._id;
+                                assignerName = user.name;
+                                assignerRole = 'Project Manager';
                             } else {
-                                // Team Member logic - can see tasks they assigned or created
-                                const teamMemberCreated = task.createdBy && task.createdBy._id === user._id;
-                                const teamMemberAssigned = task.assignedTo && (
-                                    (Array.isArray(task.assignedTo) && task.assignedTo.some(assignee => assignee._id === user._id)) ||
-                                    (task.assignedTo._id === user._id)
-                                );
-                                
-                                if (teamMemberCreated || teamMemberAssigned) {
-                                    // Team member can see details - show as themselves
-                                    assignerId = user._id;
-                                    assignerName = user.name;
-                                    assignerRole = 'Team Member';
-                                } else {
-                                    // Task assigned to someone else - check if current team member assigned it to others
-                                    const assignedToOthers = task.assignedTo && (
-                                        (Array.isArray(task.assignedTo) && task.assignedTo.some(assignee => assignee._id !== user._id)) ||
-                                        (task.assignedTo._id && task.assignedTo._id !== user._id)
-                                    );
-                                    
-                                    if (assignedToOthers) {
-                                        // Team member assigned task to others - can see those details
-                                        const otherAssignee = Array.isArray(task.assignedTo) 
-                                            ? task.assignedTo.find(assignee => assignee._id !== user._id)
-                                            : task.assignedTo;
-                                        
-                                        assignerId = otherAssignee._id;
-                                        assignerName = otherAssignee.name;
-                                        assignerRole = 'Team Member';
-                                    } else {
-                                        // Task created by someone else and not assigned by current team member
-                                        assignerId = 'unknown';
-                                        assignerName = 'Unknown Assigner';
-                                        assignerRole = 'Unknown';
-                                    }
-                                }
-                            
+                                assignerId = 'restricted';
+                                assignerName = 'Restricted Access';
+                                assignerRole = 'Restricted';
+                            }
+
                             if (!tasksByAssigner[assignerId]) {
                                 tasksByAssigner[assignerId] = {
                                     assignerId,
@@ -258,23 +211,28 @@ const UnifiedDashboard = () => {
                                     tasks: []
                                 };
                             }
-                            
-            const allTasks = tasksResponse.data;
-            
-            // Filter tasks for current user based on role
-            let userTasks;
-            if (user?.role === 'Project Manager') {
-                // PM sees: tasks they created (not just assigned tasks)
-                userTasks = allTasks.filter(task => {
-                    // PM sees any task they created, regardless of who it's assigned to
-                    const pmCreated = task.createdBy && (
-                        (typeof task.createdBy === 'string' && task.createdBy === user._id) ||
-                        (task.createdBy._id && task.createdBy._id.toString() === user._id) ||
-                        (task.createdBy === user._id)
-                    );
-                    
-                    return pmCreated;
-                });
+
+                            tasksByAssigner[assignerId].tasks.push(task);
+                        }); // ✅ CLOSE inner forEach
+
+                        member.tasksByAssigner = Object.values(tasksByAssigner);
+                    }); // ✅ CLOSE outer forEach
+                } // ✅ CLOSE if block
+                
+                // Filter tasks for current user based on role
+                let userTasks;
+                if (user?.role === 'Project Manager') {
+                    // PM sees: tasks they created (not just assigned tasks)
+                    userTasks = allTasks.filter(task => {
+                        // PM sees any task they created, regardless of who it's assigned to
+                        const pmCreated = task.createdBy && (
+                            (typeof task.createdBy === 'string' && task.createdBy === user._id) ||
+                            (task.createdBy._id && task.createdBy._id.toString() === user._id) ||
+                            (task.createdBy === user._id)
+                        );
+                        
+                        return pmCreated;
+                    });
             } else if (user?.role === 'Admin') {
                 // Admin sees all tasks
                 userTasks = allTasks;
@@ -289,6 +247,7 @@ const UnifiedDashboard = () => {
             }
             
             setMyTasks(userTasks);
+            
             
             // Calculate personal statistics
             const now = new Date();
@@ -1234,6 +1193,11 @@ const UnifiedDashboard = () => {
                                     </li>
                                 ))
                             )}
+                        </ul>
+                    </div>
+                )}
+            </div>
+            
             {activeView === 'team' && (user?.role === 'Admin' || user?.role === 'Project Manager') && (
                 <div>
                     {/* Team Stats Cards */}

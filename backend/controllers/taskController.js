@@ -26,9 +26,13 @@ const createTask = async (req, res) => {
             return res.status(400).json({ message: 'Estimated hours is required' });
         }
         
+        // Validate that at least one assignee is provided
+        if (!assignedTo || (Array.isArray(assignedTo) && assignedTo.length === 0)) {
+            return res.status(400).json({ message: 'At least one assignee is required' });
+        }
+        
         // Check assignment permissions
         if (assignedTo && !['Admin', 'Project Manager'].includes(req.user.role)) {
-            console.log('Task assignment denied for user role:', req.user.role);
             return res.status(403).json({ message: 'Only Admin or Project Manager can assign tasks' });
         }
         

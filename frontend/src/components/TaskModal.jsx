@@ -104,9 +104,15 @@ const TaskModal = ({ task, onClose, allTasks }) => {
         setLoading(true);
         setError('');
 
+        // Validation: Ensure at least one assignee is selected
+        if (!formData.assignedTo || formData.assignedTo.length === 0) {
+            setError('Please select at least one assignee for the task.');
+            setLoading(false);
+            return;
+        }
+
         // Use current user from AuthContext instead of localStorage
         const currentUser = user;
-        console.log(' Current user for task creation:', currentUser);
 
         const payload = {
             title: formData.title,
@@ -275,6 +281,55 @@ const TaskModal = ({ task, onClose, allTasks }) => {
                                 </div>
                             </div>
 
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700">
+                                    Assignees <span className="text-red-500">*</span> <span className="text-xs text-gray-500">(Select multiple team members)</span>
+                                </label>
+                                <select
+                                    multiple
+                                    name="assignedTo"
+                                    value={formData.assignedTo}
+                                    onChange={handleChange}
+                                    className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm h-24"
+                                    size="4"
+                                    required
+                                >
+                                    <option value="" disabled>
+                                        {formData.assignedTo.length === 0 
+                                            ? 'Select assignees...' 
+                                            : `${formData.assignedTo.length} member(s) selected`}
+                                    </option>
+                                    {users
+                                        .filter(u => {
+                                            // For PMs: show all team members except themselves
+                                            if (user?.role === 'Project Manager') {
+                                                return u.role === 'Team Member' && u._id !== user._id;
+                                            }
+                                            // For Admins: show all users except themselves
+                                            if (user?.role === 'Admin') {
+                                                return u._id !== user._id;
+                                            }
+                                            // For Team Members: show other team members
+                                            return u.role === 'Team Member' && u._id !== user._id;
+                                        })
+                                        .map(user => (
+                                            <option key={user._id} value={user._id}>
+                                                {user.name} ({user.role})
+                                            </option>
+                                        ))}
+                                </select>
+                                {formData.assignedTo.length > 0 && (
+                                    <p className="mt-1 text-xs text-gray-600">
+                                        🎯 Task will be assigned to {formData.assignedTo.length} team member(s)
+                                    </p>
+                                )}
+                                {formData.assignedTo.length === 0 && (
+                                    <p className="mt-1 text-xs text-red-600">
+                                        ⚠️ Please select at least one assignee
+                                    </p>
+                                )}
+                            </div>
+
                             <div className="grid grid-cols-2 gap-4">
                                 <div>
                                     <label className="block text-sm font-medium text-gray-700">
@@ -286,56 +341,7 @@ const TaskModal = ({ task, onClose, allTasks }) => {
                                         value={formData.category}
                                         onChange={handleChange}
                                         className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
-                                    />
-                                </div>
-
-                                <div>
-                                    <label className="block text-sm font-medium text-gray-700">
-                                        Assignees <span className="text-xs text-gray-500">(Select multiple team members)</span>
-                                    </label>
-                                    <select
-                                        multiple
-                                        name="assignedTo"
-                                        value={formData.assignedTo}
-                                        onChange={handleChange}
-                                        className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm h-24"
-                                        size="4"
-                                    >
-                                        <option value="" disabled>
-                                            {formData.assignedTo.length === 0 
-                                                ? 'Select assignees...' 
-                                                : `${formData.assignedTo.length} member(s) selected`}
-                                        </option>
-                                        {users
-                                            .filter(u => {
-                                                // Get current user role from AuthContext
-                                                const currentUserRole = user?.role;
-                                                
-                                                // Team members can only assign to other team members
-                                                if (currentUserRole === 'Team Member') {
-                                                    return u.role === 'Team Member';
-                                                }
-                                                
-                                                // Project Managers can assign to Team Members and other PMs (but not Admins)
-                                                if (currentUserRole === 'Project Manager') {
-                                                    return u.role === 'Team Member' || u.role === 'Project Manager';
-                                                }
-                                                
-                                                // Admins can assign to anyone
-                                                return true;
-                                            })
-                                            .map(u => (
-                                                <option key={u._id} value={u._id}>
-                                                    {u.name} ({u.role})
-                                                </option>
-                                            ))}
-                                    </select>
-                                    {formData.assignedTo.length > 0 && (
-                                        <p className="mt-1 text-xs text-gray-600">
-                                            🎯 Task will be assigned to {formData.assignedTo.length} team member(s)
-                                        </p>
-                                    )}
-                                </div>
+                                />
                             </div>
 
                             <div className="grid grid-cols-2 gap-4">
@@ -454,10 +460,9 @@ const TaskModal = ({ task, onClose, allTasks }) => {
                                     Cancel
                                 </button>
                             </div>
+                        </div>
                         </form>
-
                     </div>
-
                 </div>
 
             </div>
