@@ -8,6 +8,6 @@ router.route('/profile')
     .put(protect, updateUserProfile);
 
 router.route('/')
-    .get(protect, authorize('Admin', 'Project Manager'), getUsers);
+    .get(protect, getUsers);
 
 module.exports = router;

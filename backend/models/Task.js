@@ -6,7 +6,7 @@ const taskSchema = new mongoose.Schema({
     category: { type: String },
     priority: { type: String, enum: ['Low', 'Medium', 'High', 'Critical'], default: 'Medium' },
     status: { type: String, enum: ['To Do', 'In Progress', 'In Review', 'Completed', 'Blocked'], default: 'To Do' },
-    assignedTo: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
+    assignedTo: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null }], // Array to support multiple assignees
     dependsOn: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Task' }],
     timeEstimates: {
         estimatedHours: { type: Number, required: true },
@@ -24,7 +24,8 @@ const taskSchema = new mongoose.Schema({
         changedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
         timestamp: { type: Date, default: Date.now },
         details: { type: String }
-    }]
+    }],
+    createdBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' }, // Track who created the task
 }, { timestamps: true });
 
 taskSchema.index({ status: 1, assignedTo: 1 });

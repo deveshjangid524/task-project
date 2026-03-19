@@ -6,19 +6,27 @@ const User = require('../models/User');
 // @access  Private
 const getDashboardStats = async (req, res) => {
     try {
+        console.log('Getting dashboard stats for user:', req.user._id);
+        
         const totalTasks = await Task.countDocuments();
         const completedTasks = await Task.countDocuments({ status: 'Completed' });
         const blockedTasks = await Task.countDocuments({ status: 'Blocked' });
 
+        console.log('Task counts:', { totalTasks, completedTasks, blockedTasks });
+
         // Bottlenecks: Tasks that are blocked, or tasks that have many dependents
         const bottlenecks = await Task.find({ status: 'Blocked' }).populate('assignedTo', 'name');
 
-        // Overdue tasks
+        // Overdue tasks - check both manual and AI optimized due dates
         const today = new Date();
         const overdueTasks = await Task.find({
-            'scheduling.aiOptimizedDueDate': { $lt: today },
-            status: { $ne: 'Completed' }
+            $or: [
+                { 'scheduling.manualDueDate': { $lt: today }, status: { $ne: 'Completed' } },
+                { 'scheduling.aiOptimizedDueDate': { $lt: today }, status: { $ne: 'Completed' } }
+            ]
         }).populate('assignedTo', 'name');
+
+        console.log('Overdue tasks found:', overdueTasks.length);
 
         // Workload per user
         const workloadAggregation = await Task.aggregate([
@@ -26,9 +34,11 @@ const getDashboardStats = async (req, res) => {
             { $group: { _id: '$assignedTo', activeTasks: { $sum: 1 }, totalEstimatedHours: { $sum: '$timeEstimates.estimatedHours' } } }
         ]);
 
+        console.log('Workload aggregation:', workloadAggregation);
+
         const populatedWorkload = await User.populate(workloadAggregation, { path: '_id', select: 'name email role' });
 
-        res.json({
+        const result = {
             completionRate: totalTasks === 0 ? 0 : (completedTasks / totalTasks) * 100,
             totalTasks,
             completedTasks,
@@ -40,11 +50,14 @@ const getDashboardStats = async (req, res) => {
                 activeTasks: w.activeTasks,
                 totalEstimatedHours: w.totalEstimatedHours
             }))
-        });
+        };
+
+        console.log('Final analytics result:', result);
+        res.json(result);
 
     } catch (error) {
-        console.error(error);
-        res.status(500).json({ message: 'Server Error loading analytics' });
+        console.error('Analytics controller error:', error);
+        res.status(500).json({ message: 'Server Error loading analytics', error: error.message });
     }
 };
 

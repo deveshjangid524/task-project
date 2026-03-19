@@ -8,8 +8,12 @@ const api = axios.create({
 
 api.interceptors.request.use((config) => {
     const user = JSON.parse(localStorage.getItem('user'));
+    console.log('API interceptor - User from localStorage:', user);
     if (user && user.token) {
         config.headers.Authorization = `Bearer ${user.token}`;
+        console.log('API interceptor - Token set in headers:', config.headers.Authorization);
+    } else {
+        console.log('API interceptor - No token found');
     }
     return config;
 });

@@ -7,7 +7,8 @@
     "dev": "vite",
     "build": "vite build",
     "lint": "eslint .",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "start": "vite --host localhost --port 3000"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",
@@ -16,6 +17,7 @@
     "@tailwindcss/vite": "^4.2.1",
     "axios": "^1.13.6",
     "lucide-react": "^0.577.0",
+    "playwright": "^1.58.2",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
     "react-router-dom": "^7.13.1",

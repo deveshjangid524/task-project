@@ -1,7 +1,9 @@
 import React from 'react';
 import { Outlet, Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { LayoutDashboard, Users, UserCircle, LogOut, Briefcase } from 'lucide-react';
+import { LayoutDashboard, Users, UserCircle, LogOut, Briefcase, FileText } from 'lucide-react';
+import NotificationSystem from './NotificationSystem';
+import ChatSystem from './ChatSystem';
 
 const Layout = () => {
     const { user, logout } = useAuth();
@@ -15,8 +17,9 @@ const Layout = () => {
 
     const navigation = [
         { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
-        { name: 'Tasks (List)', href: '/tasks', icon: Briefcase },
+        { name: 'Tasks', href: '/tasks', icon: Briefcase },
         { name: 'Team Overview', href: '/team', icon: Users, roles: ['Admin', 'Project Manager'] },
+        { name: 'Notes', href: '/notes', icon: FileText },
         { name: 'Profile', href: '/profile', icon: UserCircle },
     ];
 
@@ -84,6 +87,17 @@ const Layout = () => {
 
             {/* Main content */}
             <div className="flex flex-col w-0 flex-1 overflow-hidden">
+                {/* Top Header */}
+                <div className="bg-white border-b border-gray-200 px-4 py-3 sm:px-6 lg:px-8">
+                    <div className="flex justify-between items-center">
+                        <div className="flex-1"></div>
+                        <div className="flex items-center space-x-4">
+                            <ChatSystem />
+                            <NotificationSystem />
+                        </div>
+                    </div>
+                </div>
+                
                 <main className="flex-1 relative z-0 overflow-y-auto focus:outline-none">
                     <Outlet />
                 </main>

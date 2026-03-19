@@ -6,10 +6,11 @@ import PrivateRoute from './components/PrivateRoute';
 import Layout from './components/Layout';
 import Login from './pages/Login';
 import Register from './pages/Register';
-import Dashboard from './pages/Dashboard';
+import UnifiedDashboard from './pages/UnifiedDashboard';
 import Profile from './pages/Profile';
 import TeamOverview from './pages/TeamOverview';
 import TaskBoard from './pages/TaskBoard';
+import NotesPage from './pages/NotesPage';
 
 function App() {
   return (
@@ -22,10 +23,11 @@ function App() {
           {/* Protected Routes using Layout */}
           <Route element={<PrivateRoute />}>
             <Route element={<Layout />}>
-              <Route path="/dashboard" element={<Dashboard />} />
+              <Route path="/dashboard" element={<UnifiedDashboard />} />
               <Route path="/tasks" element={<TaskBoard />} />
+              <Route path="/team" element={<TeamOverview />} />
+              <Route path="/notes" element={<NotesPage />} />
               <Route path="/profile" element={<Profile />} />
-              <Route path="/team" element={<PrivateRoute allowedRoles={['Admin', 'Project Manager']}><TeamOverview /></PrivateRoute>} />
               {/* Other routes will be added here */}
             </Route>
           </Route>

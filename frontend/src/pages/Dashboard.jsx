@@ -10,7 +10,14 @@ import { CheckCircle, AlertTriangle, Clock, Activity } from 'lucide-react';
 const COLORS = ['#10b981', '#3b82f6', '#f59e0b', '#ef4444', '#8b5cf6'];
 
 const Dashboard = () => {
-    const [stats, setStats] = useState(null);
+    const [stats, setStats] = useState({
+        totalTasks: 0,
+        completedTasks: 0,
+        blockedTasks: 0,
+        overdueTasks: [],
+        completionRate: 0,
+        workload: []
+    });
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
     const { user } = useAuth();
@@ -18,11 +25,34 @@ const Dashboard = () => {
     useEffect(() => {
         const fetchAnalytics = async () => {
             try {
+                console.log('Fetching dashboard analytics...');
+                
+                // Then fetch analytics
                 const response = await api.get('/analytics/dashboard');
+                console.log('Analytics response:', response.data);
                 setStats(response.data);
             } catch (err) {
-                setError('Failed to load dashboard analytics');
-                console.error(err);
+                console.error('Analytics error:', err);
+                console.error('Error response:', err.response);
+                
+                // Check if it's an authentication error
+                if (err.response?.status === 401) {
+                    console.error('Authentication error - clearing token');
+                    localStorage.removeItem('user');
+                    setError('Authentication expired - please refresh and log in again');
+                } else {
+                    setError('Failed to load dashboard analytics');
+                }
+                
+                // Set default values on error
+                setStats({
+                    totalTasks: 0,
+                    completedTasks: 0,
+                    blockedTasks: 0,
+                    overdueTasks: [],
+                    completionRate: 0,
+                    workload: []
+                });
             } finally {
                 setLoading(false);
             }
@@ -46,7 +76,7 @@ const Dashboard = () => {
         }
     };
 
-    if (loading && !stats) return <div className="p-8 text-center text-gray-500">Loading Dashboard...</div>;
+    if (loading) return <div className="p-8 text-center text-gray-500">Loading Dashboard...</div>;
     if (error) return <div className="p-8 text-center text-red-500">{error}</div>;
 
     const statusData = [
@@ -67,7 +97,7 @@ const Dashboard = () => {
                 {['Admin', 'Project Manager'].includes(user?.role) && (
                     <button
                         onClick={handleScheduleTasks}
-                        className="mt-4 sm:mt-0 inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-primary-600 hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500"
+                        className="mt-4 sm:mt-0 inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
                     >
                         <Activity className="-ml-1 mr-2 h-5 w-5" aria-hidden="true" />
                         AI Optimize Schedule
@@ -103,7 +133,7 @@ const Dashboard = () => {
                 {/* Status Breakdown */}
                 <div className="bg-white p-6 rounded-lg shadow border border-gray-100">
                     <h3 className="text-lg font-medium text-gray-900 mb-4">Task Status Breakdown</h3>
-                    <div className="h-64">
+                    <div className="h-80 w-full">
                         <ResponsiveContainer width="100%" height="100%">
                             <PieChart>
                                 <Pie
@@ -130,7 +160,7 @@ const Dashboard = () => {
                 {/* Team Workload */}
                 <div className="bg-white p-6 rounded-lg shadow border border-gray-100">
                     <h3 className="text-lg font-medium text-gray-900 mb-4">Team Workload (Active Tasks)</h3>
-                    <div className="h-64">
+                    <div className="h-80 w-full">
                         <ResponsiveContainer width="100%" height="100%">
                             <BarChart
                                 data={stats.workload.map(w => ({ name: w.user?.name || 'Unassigned', tasks: w.activeTasks, hours: w.totalEstimatedHours }))}

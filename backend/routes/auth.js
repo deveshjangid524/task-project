@@ -56,7 +56,7 @@ router.post('/register', async (req, res) => {
         }
     } catch (error) {
         console.error(error);
-        res.status(500).json({ message: 'Server Error' });
+        res.status(500).json({ message: 'Server Error', error: error.message, stack: error.stack });
     }
 });
 
@@ -76,6 +76,8 @@ router.post('/login', async (req, res) => {
                 name: user.name,
                 email: user.email,
                 role: user.role,
+                skills: user.skills || [],
+                availability: user.availability || { workingHoursPerDay: 8, timeZone: 'UTC' },
                 token: generateToken(user._id),
             });
         } else {

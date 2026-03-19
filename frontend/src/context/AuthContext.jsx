@@ -30,11 +30,15 @@ export const AuthProvider = ({ children }) => {
 
     const register = async (userData) => {
         try {
+            console.log('Sending this payload to API: ', userData);
             const response = await api.post('/auth/register', userData);
+            console.log('Success payload:', response.data);
             setUser(response.data);
             localStorage.setItem('user', JSON.stringify(response.data));
             return { success: true };
         } catch (error) {
+            console.error('Registration API Error:', error);
+            if(error.response) console.error('Data:', error.response.data);
             return { success: false, message: error.response?.data?.message || 'Registration failed' };
         }
     };

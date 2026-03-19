@@ -21,6 +21,9 @@ const getUserProfile = async (req, res) => {
 // @access  Private
 const updateUserProfile = async (req, res) => {
     try {
+        console.log('Updating profile for user:', req.user._id);
+        console.log('Request body:', req.body);
+        
         const user = await User.findById(req.user._id);
 
         if (user) {
@@ -35,6 +38,7 @@ const updateUserProfile = async (req, res) => {
             if (req.body.availability) user.availability = { ...user.availability, ...req.body.availability };
 
             const updatedUser = await user.save();
+            console.log('User updated in database:', updatedUser);
 
             res.json({
                 _id: updatedUser._id,
@@ -48,6 +52,7 @@ const updateUserProfile = async (req, res) => {
             res.status(404).json({ message: 'User not found' });
         }
     } catch (error) {
+        console.error('Error updating profile:', error);
         res.status(500).json({ message: 'Server Error' });
     }
 };
@@ -57,9 +62,13 @@ const updateUserProfile = async (req, res) => {
 // @access  Private/Project Manager or Admin
 const getUsers = async (req, res) => {
     try {
+        console.log('Fetching all users for team overview...');
+        console.log('Request from user:', req.user._id, req.user.role);
         const users = await User.find({}).select('-password');
+        console.log('Found users:', users.length);
         res.json(users);
     } catch (error) {
+        console.error('Error in getUsers:', error);
         res.status(500).json({ message: 'Server Error' });
     }
 };

@@ -7,7 +7,14 @@ const { calculateOptimizedSchedule } = require('../utils/aiScheduler');
 const createTask = async (req, res) => {
     try {
         console.log('Creating task:', req.body);
+        console.log('User role:', req.user.role);
+        console.log('User ID:', req.user._id);
         const { title, description, category, priority, assignedTo, dependsOn, timeEstimates, scheduling } = req.body;
+        
+        if (assignedTo && !['Admin', 'Project Manager'].includes(req.user.role)) {
+            console.log('Task assignment denied for user role:', req.user.role);
+            return res.status(403).json({ message: 'Only Admin or Project Manager can assign tasks' });
+        }
 
         const task = new Task({
             title,

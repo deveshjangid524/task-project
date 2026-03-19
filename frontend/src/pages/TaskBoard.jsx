@@ -15,8 +15,9 @@ import {
 } from '@dnd-kit/sortable';
 import BoardColumn from '../components/BoardColumn';
 import api from '../services/api';
-import { Plus } from 'lucide-react';
+import { Plus, Filter, User, Users } from 'lucide-react';
 import TaskModal from '../components/TaskModal';
+import { useAuth } from '../context/AuthContext';
 
 const COLUMNS = ['To Do', 'In Progress', 'In Review', 'Completed', 'Blocked'];
 
@@ -25,6 +26,8 @@ const TaskBoard = () => {
     const [loading, setLoading] = useState(true);
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [selectedTask, setSelectedTask] = useState(null);
+    const [filter, setFilter] = useState('all'); // 'all', 'my', 'unassigned'
+    const { user } = useAuth();
 
     useEffect(() => {
         fetchTasks();
@@ -53,7 +56,7 @@ const TaskBoard = () => {
     );
 
     const getTasksByStatus = (status) => {
-        return tasks.filter((task) => task.status === status);
+        return filteredTasks.filter((task) => task.status === status);
     };
 
     const handleDragEnd = async (event) => {
@@ -98,6 +101,7 @@ const TaskBoard = () => {
     };
 
     const handleOpenModal = (task = null) => {
+        console.log("New Task button clicked");
         setSelectedTask(task);
         setIsModalOpen(true);
     };
@@ -108,19 +112,82 @@ const TaskBoard = () => {
         fetchTasks(); // Refresh list to get new/updated task
     };
 
+    // Filter tasks based on selected filter
+    const getFilteredTasks = () => {
+        switch (filter) {
+            case 'my':
+                return tasks.filter(task => 
+                    task.assignedTo && task.assignedTo._id === user._id
+                );
+            case 'unassigned':
+                return tasks.filter(task => !task.assignedTo);
+            default:
+                return tasks;
+        }
+    };
+
+    const filteredTasks = getFilteredTasks();
+
     if (loading) return <div className="p-8 text-center">Loading board...</div>;
 
     return (
         <div className="py-6 px-4 sm:px-6 lg:px-8 h-full flex flex-col">
             <div className="flex justify-between items-center mb-6">
-                <h1 className="text-2xl font-bold text-gray-900">Task Board</h1>
+                <div className="flex items-center space-x-4">
+                    <h1 className="text-2xl font-bold text-gray-900">Task Board</h1>
+                    
+                    {/* Filter Buttons */}
+                    <div className="flex space-x-2">
+                        <button
+                            onClick={() => setFilter('all')}
+                            className={`inline-flex items-center px-3 py-1 border text-sm font-medium rounded-md ${
+                                filter === 'all' 
+                                    ? 'bg-blue-600 text-white border-blue-600' 
+                                    : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
+                            }`}
+                        >
+                            <Users className="h-4 w-4 mr-1" />
+                            All Tasks
+                        </button>
+                        <button
+                            onClick={() => setFilter('my')}
+                            className={`inline-flex items-center px-3 py-1 border text-sm font-medium rounded-md ${
+                                filter === 'my' 
+                                    ? 'bg-blue-600 text-white border-blue-600' 
+                                    : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
+                            }`}
+                        >
+                            <User className="h-4 w-4 mr-1" />
+                            My Tasks
+                        </button>
+                        <button
+                            onClick={() => setFilter('unassigned')}
+                            className={`inline-flex items-center px-3 py-1 border text-sm font-medium rounded-md ${
+                                filter === 'unassigned' 
+                                    ? 'bg-blue-600 text-white border-blue-600' 
+                                    : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
+                            }`}
+                        >
+                            <Filter className="h-4 w-4 mr-1" />
+                            Unassigned
+                        </button>
+                    </div>
+                </div>
+                
                 <button
                     onClick={() => handleOpenModal()}
-                    className="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-primary-600 hover:bg-primary-700 focus:outline-none"
+                    className="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
                 >
                     <Plus className="-ml-1 mr-2 h-5 w-5" aria-hidden="true" />
                     New Task
                 </button>
+            </div>
+            
+            {/* Task Count Summary */}
+            <div className="mb-4 text-sm text-gray-600">
+                Showing: <span className="font-medium">
+                    {filter === 'my' ? 'My Tasks' : filter === 'unassigned' ? 'Unassigned Tasks' : 'All Tasks'}
+                </span> ({filteredTasks.length} tasks)
             </div>
 
             <div className="flex-1 overflow-x-auto overflow-y-hidden">
