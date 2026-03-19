@@ -58,6 +58,11 @@ const UnifiedDashboard = () => {
     const [completionDialog, setCompletionDialog] = useState({ isOpen: false, task: null });
     const [recentCompletions, setRecentCompletions] = useState([]);
     const [teamMemberTasks, setTeamMemberTasks] = useState([]);
+    
+    // AI Optimization states
+    const [aiOptimizing, setAiOptimizing] = useState(false);
+    const [aiResults, setAiResults] = useState(null);
+    const [showAiResults, setShowAiResults] = useState(false);
 
     useEffect(() => {
         fetchDashboardData();
@@ -96,10 +101,6 @@ const UnifiedDashboard = () => {
                 const allTasksResponse = await api.get('/tasks');
                 const allTasks = allTasksResponse.data;
                 
-                console.log('🔍 Total tasks fetched:', allTasks.length);
-                console.log('🔍 Current user role:', user?.role);
-                console.log('🔍 Current user ID:', user?._id);
-                
                 // Filter tasks based on role:
                 // - Admin: See all tasks (current behavior)
                 // - Project Manager: Only see tasks they assigned + their own tasks
@@ -113,20 +114,9 @@ const UnifiedDashboard = () => {
                             (task.assignedTo._id === user._id)
                         );
                         
-                        console.log(`🔍 PM Filter - Task "${task.title}":`, {
-                            pmAssigned,
-                            assignedToPM,
-                            createdBy: task.createdBy?._id,
-                            assignedTo: Array.isArray(task.assignedTo) 
-                                ? task.assignedTo.map(a => a.name).join(', ')
-                                : task.assignedTo?.name || 'None'
-                        });
-                        
                         return pmAssigned || assignedToPM;
                     })
                     : allTasks; // Admin sees all tasks
-                
-                console.log('🔍 Filtered tasks count:', filteredTasks.length);
                 
                 // Group tasks by team member
                 const tasksByMember = {};
@@ -146,8 +136,6 @@ const UnifiedDashboard = () => {
                         assignees.forEach(assignee => {
                             const memberId = assignee._id;
                             const memberName = assignee.name;
-                            
-                            console.log(`🔍 Grouping task "${task.title}" for member: ${memberName}`);
                             
                             if (!tasksByMember[memberId]) {
                                 tasksByMember[memberId] = {
@@ -182,11 +170,9 @@ const UnifiedDashboard = () => {
                             }
                         });
                     } else {
-                        console.log(`⚠️ Task "${task.title}" has no assignedTo field`);
+                        // Task has no assignedTo field
                     }
                 });
-                
-                console.log('🔍 Tasks grouped by member:', Object.keys(tasksByMember).length);
                 
                 // Convert to array and calculate completion rates
                 const teamMembersData = Object.values(tasksByMember).map(member => ({
@@ -194,26 +180,12 @@ const UnifiedDashboard = () => {
                     completionRate: member.totalTasks > 0 ? (member.completedTasks / member.totalTasks * 100) : 0
                 }));
                 
-                console.log('🔍 Team members data:', teamMembersData.map(m => ({
-                    name: m.memberName,
-                    totalTasks: m.totalTasks,
-                    completed: m.completedTasks
-                })));
-                
                 // For Admin, sort by assignee name and group tasks by assignment chain
                 if (user?.role === 'Admin') {
-                    console.log('🔍 Admin: Processing team member tasks for assignment hierarchy');
                     teamMembersData.forEach(member => {
-                        console.log(`📋 Processing member: ${member.memberName} with ${member.tasks.length} tasks`);
-                        
                         // Group tasks by who assigned them (to show PM assignment patterns)
                         const tasksByAssigner = {};
                         member.tasks.forEach(task => {
-                            console.log(`🔍 Task "${task.title}":`, {
-                                createdBy: task.createdBy,
-                                assignedBy: task.assignedBy,
-                                assignedTo: task.assignedTo
-                            });
                             
                             // Handle different assignment scenarios
                             let assignerId, assignerName, assignerRole;
@@ -223,16 +195,13 @@ const UnifiedDashboard = () => {
                                 assignerId = task.createdBy._id;
                                 assignerName = task.createdBy.name || 'Unknown User';
                                 assignerRole = task.createdBy.role || 'Unknown Role';
-                                console.log(`✅ Found creator: ${assignerName} (${assignerRole})`);
                             } else if (task.assignedBy && task.assignedBy._id) {
                                 // Alternative: task has assignedBy field
                                 assignerId = task.assignedBy._id;
                                 assignerName = task.assignedBy.name || 'Unknown User';
                                 assignerRole = task.assignedBy.role || 'Unknown Role';
-                                console.log(`✅ Found assignedBy: ${assignerName} (${assignerRole})`);
                             } else {
                                 // Fallback: try to determine from context
-                                console.log(`⚠️ No assigner found for task "${task.title}"`);
                                 if (user?.role === 'Admin') {
                                     // For Admin, show as "System Assigned" if no creator found
                                     assignerId = 'system';
@@ -256,13 +225,6 @@ const UnifiedDashboard = () => {
                             }
                             tasksByAssigner[assignerId].tasks.push(task);
                         });
-                        
-                        console.log(`📊 Grouped tasks for ${member.memberName}:`, 
-                            Object.keys(tasksByAssigner).map(id => ({
-                                assigner: tasksByAssigner[id].assignerName,
-                                taskCount: tasksByAssigner[id].tasks.length
-                            }))
-                        );
                         
                         member.tasksByAssigner = Object.values(tasksByAssigner);
                     });
@@ -288,16 +250,6 @@ const UnifiedDashboard = () => {
                     const pmCreated = task.createdBy && task.createdBy._id === user._id;
                     const pmAssigned = task.assignedBy && task.assignedBy._id === user._id;
                     
-                    console.log(`🔍 PM Task Filter - "${task.title}":`, {
-                        assignedToPM,
-                        pmCreated,
-                        pmAssigned,
-                        taskStatus: task.status,
-                        assignedTo: Array.isArray(task.assignedTo) 
-                            ? task.assignedTo.map(a => a.name).join(', ')
-                            : task.assignedTo?.name || 'None'
-                    });
-                    
                     return assignedToPM || pmCreated || pmAssigned;
                 });
             } else if (user?.role === 'Admin') {
@@ -313,7 +265,6 @@ const UnifiedDashboard = () => {
                 );
             }
             
-            console.log(`🔍 ${user?.role} My Tasks count:`, userTasks.length);
             setMyTasks(userTasks);
             
             // Calculate personal statistics
@@ -379,10 +330,41 @@ const UnifiedDashboard = () => {
         await fetchDashboardData();
     };
 
+    const handleScheduleTasks = async () => {
+        try {
+            if (!['Admin', 'Project Manager'].includes(user?.role)) {
+                alert('You do not have permission to use this feature.');
+                return;
+            }
+            
+            setAiOptimizing(true);
+            
+            const response = await api.post('/ai-optimizer/ai-optimize');
+            setAiResults(response.data);
+            setShowAiResults(true);
+            
+            // Reload stats after AI optimization
+            await fetchDashboardData();
+            
+        } catch (err) {
+            console.error('AI optimization error:', err);
+            console.error('Error response:', err.response);
+            
+            let errorMessage = 'Failed to optimize schedule';
+            if (err.response?.data?.message) {
+                errorMessage = err.response.data.message;
+            } else if (err.message) {
+                errorMessage = err.message;
+            }
+            
+            alert(errorMessage);
+        } finally {
+            setAiOptimizing(false);
+        }
+    };
+
     const updateTaskStatus = async (taskId, newStatus) => {
         try {
-            console.log(`Updating task ${taskId} to status: ${newStatus}`);
-            
             // If marking as completed, show confirmation dialog
             if (newStatus === 'Completed') {
                 const task = myTasks.find(t => t._id === taskId);
@@ -461,7 +443,7 @@ const UnifiedDashboard = () => {
                     ...prev.slice(0, 4) // Keep only last 5 completions
                 ]);
                 
-                showNotification('success', `🎉 Task "${task.title}" completed successfully!`, 'Task Completed');
+                showNotification('success', `Task "${task.title}" completed successfully!`, 'Task Completed');
             } else if (newStatus === 'In Progress') {
                 showNotification('info', 'Task marked as in progress', 'Task Updated');
             }
@@ -526,21 +508,11 @@ const UnifiedDashboard = () => {
         const inProgressTasks = teamMemberTasks.reduce((sum, member) => sum + member.inProgressTasks, 0);
         const completedTasks = teamMemberTasks.reduce((sum, member) => sum + member.completedTasks, 0);
         
-        console.log('🔊 Overall Status Data Calculation:', {
-            teamMemberTasksCount: teamMemberTasks.length,
-            todoTasks,
-            inProgressTasks,
-            completedTasks,
-            totalTasks: todoTasks + inProgressTasks + completedTasks
-        });
-        
         const data = [
             { name: 'To Do', value: todoTasks },
             { name: 'In Progress', value: inProgressTasks },
             { name: 'Completed', value: completedTasks },
         ].filter(item => item.value > 0);
-        
-        console.log('🔊 Final Overall Status Data:', data);
         return data;
     })() : [];
 
@@ -551,22 +523,12 @@ const UnifiedDashboard = () => {
         const completedTasks = teamStats.completedTasks || 0;
         const blockedTasks = teamStats.blockedTasks || 0;
         
-        console.log('🔊 Team Status Data Calculation:', {
-            teamStats,
-            todoTasks,
-            inProgressTasks,
-            completedTasks,
-            blockedTasks
-        });
-        
         const data = [
             { name: 'To Do', value: todoTasks },
             { name: 'In Progress', value: inProgressTasks },
             { name: 'Completed', value: completedTasks },
             { name: 'Blocked', value: blockedTasks },
         ].filter(item => item.value > 0);
-        
-        console.log('🔊 Final Team Status Data:', data);
         return data;
     })() : [];
 
@@ -611,10 +573,16 @@ const UnifiedDashboard = () => {
                         </button>
                         {(user?.role === 'Admin' || user?.role === 'Project Manager') && (
                             <button
-                                className="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                                onClick={handleScheduleTasks}
+                                disabled={aiOptimizing}
+                                className={`inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 ${
+                                    aiOptimizing 
+                                        ? 'bg-gray-400 cursor-not-allowed' 
+                                        : 'bg-blue-600 hover:bg-blue-700'
+                                }`}
                             >
                                 <Activity className="-ml-1 mr-2 h-5 w-5" />
-                                AI Optimize Schedule
+                                {aiOptimizing ? 'AI Optimizing...' : 'AI Optimize Schedule'}
                             </button>
                         )}
                     </div>
@@ -1537,6 +1505,132 @@ const UnifiedDashboard = () => {
                             ))}
                         </div>
                     )}
+                </div>
+            )}
+
+            {/* AI Optimization Results */}
+            {showAiResults && aiResults && (
+                <div className="mb-8">
+                    <div className="bg-white p-6 rounded-lg shadow border border-gray-100">
+                        <div className="flex justify-between items-start mb-6">
+                            <div>
+                                <h3 className="text-lg font-medium text-gray-900">AI Optimization Results</h3>
+                                <p className="mt-1 text-sm text-gray-500">
+                                    Powered by Mistral AI • Analyzed {aiResults.originalTasks?.length || 0} tasks
+                                </p>
+                            </div>
+                            <button
+                                onClick={() => setShowAiResults(false)}
+                                className="text-gray-400 hover:text-gray-500"
+                            >
+                                ×
+                            </button>
+                        </div>
+
+                        {/* Key Insights */}
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                            <div className="bg-blue-50 p-4 rounded-lg">
+                                <h4 className="text-sm font-medium text-blue-900">Estimated Completion</h4>
+                                <p className="text-lg font-semibold text-blue-600">
+                                    {aiResults.aiInsights?.estimatedCompletion || 'TBD'}
+                                </p>
+                            </div>
+                            <div className="bg-green-50 p-4 rounded-lg">
+                                <h4 className="text-sm font-medium text-green-900">Tasks Analyzed</h4>
+                                <p className="text-lg font-semibold text-green-600">
+                                    {aiResults.originalTasks?.length || 0}
+                                </p>
+                            </div>
+                            <div className="bg-purple-50 p-4 rounded-lg">
+                                <h4 className="text-sm font-medium text-purple-900">Optimization Score</h4>
+                                <p className="text-lg font-semibold text-purple-600">High</p>
+                            </div>
+                        </div>
+
+                        {/* Optimized Schedule */}
+                        {aiResults.optimizedSchedule?.optimizedSchedule && (
+                            <div className="mb-6">
+                                <h4 className="text-md font-medium text-gray-900 mb-3">Optimized Task Schedule</h4>
+                                <div className="space-y-2 max-h-64 overflow-y-auto">
+                                    {aiResults.optimizedSchedule.optimizedSchedule.map((task, index) => (
+                                        <div key={index} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                                            <div className="flex-1">
+                                                <p className="text-sm font-medium text-gray-900">{task.title}</p>
+                                                <p className="text-xs text-gray-500">{task.reasoning}</p>
+                                            </div>
+                                            <div className="text-right ml-4">
+                                                <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
+                                                    task.priority === 'High' ? 'bg-red-100 text-red-800' :
+                                                    task.priority === 'Medium' ? 'bg-yellow-100 text-yellow-800' :
+                                                    'bg-green-100 text-green-800'
+                                                }`}>
+                                                    {task.priority}
+                                                </span>
+                                                <p className="text-xs text-gray-500 mt-1">
+                                                    {task.suggestedStartDate} → {task.suggestedDueDate}
+                                                </p>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
+
+                        {/* Recommendations */}
+                        {aiResults.aiInsights?.recommendations?.length > 0 && (
+                            <div className="mb-6">
+                                <h4 className="text-md font-medium text-gray-900 mb-3">AI Recommendations</h4>
+                                <ul className="space-y-2">
+                                    {aiResults.aiInsights.recommendations.map((rec, index) => (
+                                        <li key={index} className="flex items-start">
+                                            <span className="flex-shrink-0 w-2 h-2 bg-blue-600 rounded-full mt-2 mr-3"></span>
+                                            <span className="text-sm text-gray-700">{rec}</span>
+                                        </li>
+                                    ))}
+                                </ul>
+                            </div>
+                        )}
+
+                        {/* Potential Bottlenecks */}
+                        {aiResults.aiInsights?.bottlenecks?.length > 0 && (
+                            <div className="mb-6">
+                                <h4 className="text-md font-medium text-gray-900 mb-3">Potential Bottlenecks</h4>
+                                <div className="space-y-2">
+                                    {aiResults.aiInsights.bottlenecks.map((bottleneck, index) => (
+                                        <div key={index} className="flex items-start p-3 bg-yellow-50 rounded-lg">
+                                            <AlertTriangle className="w-4 h-4 text-yellow-600 mt-0.5 mr-2 flex-shrink-0" />
+                                            <span className="text-sm text-yellow-800">{bottleneck}</span>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
+
+                        {/* Resource Allocation */}
+                        {aiResults.aiInsights?.resourceAllocation && Object.keys(aiResults.aiInsights.resourceAllocation).length > 0 && (
+                            <div>
+                                <h4 className="text-md font-medium text-gray-900 mb-3">Resource Allocation</h4>
+                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                                    {Object.entries(aiResults.aiInsights.resourceAllocation).map(([member, allocation]) => (
+                                        <div key={member} className="p-3 border border-gray-200 rounded-lg">
+                                            <p className="text-sm font-medium text-gray-900">{member}</p>
+                                            <div className="mt-1 text-xs text-gray-500">
+                                                <p>Tasks: {allocation.tasksCount}</p>
+                                                <p>Hours: {allocation.totalHours}</p>
+                                                <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
+                                                    allocation.workload === 'Balanced' ? 'bg-green-100 text-green-800' :
+                                                    allocation.workload === 'Overloaded' ? 'bg-red-100 text-red-800' :
+                                                    'bg-gray-100 text-gray-800'
+                                                }`}>
+                                                    {allocation.workload}
+                                                </span>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
+                    </div>
                 </div>
             )}
 

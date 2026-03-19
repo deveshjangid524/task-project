@@ -65,6 +65,7 @@ app.use('/api/tasks', require('./routes/task'));
 app.use('/api/analytics', require('./routes/analytics'));
 app.use('/api/chat', require('./routes/chat'));
 app.use('/api/notes', require('./routes/notes'));
+app.use('/api/ai-optimizer', require('./routes/aiOptimizer'));
 
 // Serve uploaded files
 app.use('/uploads', express.static('uploads'));
