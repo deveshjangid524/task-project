@@ -99,6 +99,7 @@ const getTasks = async (req, res) => {
 
         const tasks = await Task.find(query)
             .populate('assignedTo', 'name email')
+            .populate('createdBy', 'name email role')
             .populate('dependsOn', 'title status');
 
         res.json(tasks);

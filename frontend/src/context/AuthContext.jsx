@@ -10,11 +10,29 @@ export const AuthProvider = ({ children }) => {
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
-        const storedUser = localStorage.getItem('user');
-        if (storedUser) {
-            setUser(JSON.parse(storedUser));
-        }
-        setLoading(false);
+        const loadStoredUser = () => {
+            try {
+                const storedUser = localStorage.getItem('user');
+                if (storedUser) {
+                    const parsedUser = JSON.parse(storedUser);
+                    // Validate that parsed user has required fields
+                    if (parsedUser && parsedUser._id && parsedUser.email) {
+                        setUser(parsedUser);
+                    } else {
+                        console.warn('Invalid user data in localStorage, clearing...');
+                        localStorage.removeItem('user');
+                    }
+                }
+            } catch (error) {
+                console.error('Error parsing stored user data:', error);
+                // Clear corrupted data
+                localStorage.removeItem('user');
+            } finally {
+                setLoading(false);
+            }
+        };
+        
+        loadStoredUser();
     }, []);
 
     const login = async (email, password) => {

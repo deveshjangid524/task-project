@@ -47,6 +47,34 @@ const upload = multer({
 
 router.route('/schedule').post(protect, authorize('Admin', 'Project Manager'), scheduleTasks);
 
+router.route('/migrate-createdBy')
+    .post(protect, authorize('Admin'), async (req, res) => {
+        try {
+            console.log('=== MIGRATING CREATEDBY FIELD ===');
+            const Task = require('../models/Task');
+            
+            // Find all tasks without createdBy
+            const tasksWithoutCreator = await Task.find({ createdBy: { $exists: false } });
+            console.log(`Found ${tasksWithoutCreator.length} tasks without createdBy`);
+            
+            // Update them with the current admin user as creator
+            const updatePromises = tasksWithoutCreator.map(task => 
+                Task.findByIdAndUpdate(task._id, { createdBy: req.user._id })
+            );
+            
+            await Promise.all(updatePromises);
+            
+            console.log('Migration completed successfully');
+            res.json({ 
+                message: 'Migration completed', 
+                updatedCount: tasksWithoutCreator.length 
+            });
+        } catch (error) {
+            console.error('Migration error:', error);
+            res.status(500).json({ message: 'Migration failed' });
+        }
+    });
+
 router.route('/')
     .post(protect, createTask)
     .get(protect, getTasks);

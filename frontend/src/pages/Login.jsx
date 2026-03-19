@@ -83,14 +83,23 @@ const Login = () => {
             <div className="sm:mx-auto sm:w-full sm:max-w-md">
                 <div className="flex justify-center">
                     <div className="rounded-full bg-primary-100 p-3">
-                        {isResetPassword ? <Key className="h-8 w-8 text-primary-600" : 
-                         isLogin ? <LogIn className="h-8 w-8 text-primary-600" : 
-                         <UserPlus className="h-8 w-8 text-primary-600" />}
+                        {isResetPassword ? (
+                            <Key className="h-8 w-8 text-primary-600" />
+                        ) : isLogin ? (
+                            <LogIn className="h-8 w-8 text-primary-600" />
+                        ) : (
+                            <UserPlus className="h-8 w-8 text-primary-600" />
+                        )}
                     </div>
                 </div>
                 <h2 className="mt-6 text-center text-3xl font-extrabold text-gray-900">
-                    {isResetPassword ? 'Reset your password' : 
-                     isLogin ? 'Sign in to your account' : 'Create an account'}
+                    {isResetPassword ? (
+                        'Reset your password'
+                    ) : isLogin ? (
+                        'Sign in to your account'
+                    ) : (
+                        'Create an account'
+                    )}
                 </h2>
                 <p className="mt-2 text-center text-sm text-gray-600">
                     {isResetPassword ? (
@@ -333,7 +342,13 @@ const Login = () => {
                                 disabled={loading}
                                 className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-primary-600 hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 disabled:opacity-50"
                             >
-                                {loading ? (isLogin ? 'Signing in...' : 'Creating account...') : (isLogin ? 'Sign in' : 'Register')}
+                                {loading ? (
+                                    isResetPassword ? 'Sending reset link...' : 
+                                    isLogin ? 'Signing in...' : 'Creating account...'
+                                ) : (
+                                    isResetPassword ? 'Send Reset Link' : 
+                                    isLogin ? 'Sign in' : 'Register'
+                                )}
                             </button>
                         </div>
                     </form>

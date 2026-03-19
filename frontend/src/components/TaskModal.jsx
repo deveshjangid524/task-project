@@ -2,10 +2,32 @@ import React, { useState, useEffect } from 'react';
 import api from '../services/api';
 import { showNotification } from './NotificationSystem';
 import { X } from 'lucide-react';
+import { useAuth } from '../context/AuthContext';
 
 const TaskModal = ({ task, onClose, allTasks }) => {
 
     if (!allTasks) return null;
+    
+    const { user } = useAuth();
+
+    // Sanitize URL to prevent XSS
+    const sanitizeUrl = (url) => {
+        if (!url || typeof url !== 'string') return '';
+        
+        // Remove potentially dangerous characters and scripts
+        const sanitized = url
+            .replace(/[<>]/g, '') // Remove angle brackets
+            .replace(/javascript:/gi, '') // Remove javascript protocol
+            .replace(/on\w+\s*=/gi, '') // Remove event handlers
+            .trim();
+            
+        // Ensure URL has a protocol
+        if (!sanitized.match(/^https?:\/\//)) {
+            return `https://${sanitized}`;
+        }
+        
+        return sanitized;
+    };
 
     const [formData, setFormData] = useState({
         title: task?.title || '',
@@ -51,16 +73,19 @@ const TaskModal = ({ task, onClose, allTasks }) => {
         const link = linkInput.value.trim();
         
         if (link) {
-            // Basic URL validation
-            const urlPattern = /^(https?:\/\/)?([\da-z\.-]+)\.([a-z\.]{2,6})([\/\w \.-]*)*\/?$/;
-            if (!urlPattern.test(link)) {
+            // Sanitize the URL first
+            const sanitizedLink = sanitizeUrl(link);
+            
+            // Basic URL validation for sanitized link
+            const urlPattern = /^https:\/\/([\da-z\.-]+)\.([a-z\.]{2,6})([\/\w \.-]*)*\/?$/;
+            if (!urlPattern.test(sanitizedLink)) {
                 setError('Please enter a valid URL (e.g., https://example.com/document.pdf)');
                 return;
             }
             
             setFormData({ 
                 ...formData, 
-                attachmentLinks: [...formData.attachmentLinks, link] 
+                attachmentLinks: [...formData.attachmentLinks, sanitizedLink] 
             });
             linkInput.value = '';
             setError('');
@@ -79,8 +104,8 @@ const TaskModal = ({ task, onClose, allTasks }) => {
         setLoading(true);
         setError('');
 
-        // Get current user from localStorage
-        const currentUser = JSON.parse(localStorage.getItem('user'));
+        // Use current user from AuthContext instead of localStorage
+        const currentUser = user;
         console.log(' Current user for task creation:', currentUser);
 
         const payload = {
@@ -283,8 +308,8 @@ const TaskModal = ({ task, onClose, allTasks }) => {
                                         </option>
                                         {users
                                             .filter(u => {
-                                                // Get current user role
-                                                const currentUserRole = JSON.parse(localStorage.getItem('user'))?.role;
+                                                // Get current user role from AuthContext
+                                                const currentUserRole = user?.role;
                                                 
                                                 // Team members can only assign to other team members
                                                 if (currentUserRole === 'Team Member') {
@@ -386,9 +411,9 @@ const TaskModal = ({ task, onClose, allTasks }) => {
                                                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
                                                             </svg>
                                                             <a 
-                                                                href={link} 
+                                                                href={sanitizeUrl(link)} 
                                                                 target="_blank" 
-                                                                rel="noopener noreferrer"
+                                                                rel="noopener noreferrer nofollow"
                                                                 className="text-sm text-blue-600 hover:text-blue-800 truncate"
                                                                 title={link}
                                                             >

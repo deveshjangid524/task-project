@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Trophy, Star } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import api from '../services/api';
@@ -31,7 +31,7 @@ const RewardsBadge = () => {
         }
     }, [user]);
 
-    const addRewards = (points) => {
+    const addRewards = useCallback((points) => {
         const newRewards = rewards + points;
         setRewards(newRewards);
         localStorage.setItem(`rewards_${user?._id}`, newRewards.toString());
@@ -39,7 +39,7 @@ const RewardsBadge = () => {
         // Show animation
         setShowAnimation(true);
         setTimeout(() => setShowAnimation(false), 2000);
-    };
+    }, [rewards, user?._id]);
 
     // Make this function globally accessible
     useEffect(() => {
@@ -47,7 +47,7 @@ const RewardsBadge = () => {
         return () => {
             delete window.addRewards;
         };
-    }, [rewards]);
+    }, [addRewards]);
 
     return (
         <div className="relative group">

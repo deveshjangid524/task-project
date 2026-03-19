@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
     DndContext,
     closestCorners,
@@ -29,59 +29,88 @@ const TaskBoard = () => {
     const [selectedTask, setSelectedTask] = useState(null);
     const [filter, setFilter] = useState('all'); // 'all', 'my', 'unassigned'
     const { user } = useAuth();
+    
+    // Track completed tasks to prevent duplicate rewards
+    const [completedTasks, setCompletedTasks] = useState(new Set());
 
     useEffect(() => {
         fetchTasks();
     }, [user]); // Refetch tasks when user changes
+
+    const addRewardsSafely = (taskId, points) => {
+        // Check if this task was already rewarded
+        if (completedTasks.has(taskId)) {
+            console.log(`Task ${taskId} already rewarded, skipping`);
+            return;
+        }
+        
+        // Mark task as rewarded
+        setCompletedTasks(prev => new Set([...prev, taskId]));
+        
+        // Add rewards with proper error handling
+        if (window.addRewards) {
+            try {
+                window.addRewards(points);
+            } catch (error) {
+                console.error('Error adding rewards:', error);
+                // Remove from completed set on error to allow retry
+                setCompletedTasks(prev => {
+                    const newSet = new Set(prev);
+                    newSet.delete(taskId);
+                    return newSet;
+                });
+            }
+        }
+    };
 
     const fetchTasks = async () => {
         try {
             const response = await api.get('/tasks');
             const allTasks = response.data;
             
-            // Filter tasks based on user role - FIXED LOGIC
-            let filteredTasks;
-            if (user?.role === 'Admin') {
+            // Filter tasks based on user role - FIXED LOGIC with null checks
+            let filteredTasks = [];
+            
+            if (!user) {
+                // No user logged in, show no tasks
+                filteredTasks = [];
+            } else if (user.role === 'Admin') {
                 // Admin sees all tasks
                 filteredTasks = allTasks;
-            } else if (user?.role === 'Project Manager') {
-                // Project Manager sees tasks they created OR assigned to them
+            } else if (user.role === 'Project Manager') {
+                // Project Manager sees all tasks they created (for oversight)
+                // This includes tasks they assigned to team members
                 filteredTasks = allTasks.filter(task => {
-                    // Handle both single assignee and multi-assignee scenarios
-                    const assignedToPM = task.assignedTo && (
-                        (Array.isArray(task.assignedTo) && task.assignedTo.some(assignee => 
-                            (typeof assignee === 'string' && assignee === user._id) ||
-                            (assignee._id && assignee._id === user._id)
-                        )) ||
-                        (typeof task.assignedTo === 'string' && task.assignedTo === user._id) ||
-                        (task.assignedTo._id && task.assignedTo._id === user._id)
-                    );
+                    if (!task) return false;
+                    
+                    // PM sees any task they created, regardless of who it's assigned to
                     const pmCreated = task.createdBy && (
                         (typeof task.createdBy === 'string' && task.createdBy === user._id) ||
                         (task.createdBy._id && task.createdBy._id === user._id)
                     );
                     
-                    // PM should see tasks they created OR assigned to them
-                    // This includes tasks they assigned to team members for oversight
-                    return assignedToPM || pmCreated;
+                    return pmCreated;
                 });
             } else {
                 // Team Member sees only tasks assigned to them (handle multi-assignee)
-                filteredTasks = allTasks.filter(task => 
-                    task.assignedTo && (
+                filteredTasks = allTasks.filter(task => {
+                    if (!task) return false;
+                    
+                    return task.assignedTo && (
                         (Array.isArray(task.assignedTo) && task.assignedTo.some(assignee => 
                             (typeof assignee === 'string' && assignee === user._id) ||
                             (assignee._id && assignee._id === user._id)
                         )) ||
                         (typeof task.assignedTo === 'string' && task.assignedTo === user._id) ||
                         (task.assignedTo._id && task.assignedTo._id === user._id)
-                    )
-                );
+                    );
+                });
             }
             
             setTasks(filteredTasks);
         } catch (error) {
             console.error('Error fetching tasks', error);
+            setTasks([]); // Set empty array on error
         } finally {
             setLoading(false);
         }
@@ -105,11 +134,9 @@ const TaskBoard = () => {
             // Backend update
             await api.put(`/tasks/${taskId}`, { status: newStatus });
             
-            // Add rewards if task is completed
+            // Add rewards if task is completed (with synchronization)
             if (isCompleting) {
-                if (window.addRewards) {
-                    window.addRewards(100);
-                }
+                addRewardsSafely(taskId, 100);
                 
                 // Show special completion notification
                 showNotification('success', '🎉 Task completed! +100 reward points earned!', 'Task Completed & Rewarded!');
@@ -192,11 +219,9 @@ const TaskBoard = () => {
             try {
                 await api.put(`/tasks/${activeId}`, { status: newStatus });
                 
-                // Add rewards if task is completed
+                // Add rewards if task is completed (with synchronization)
                 if (isCompleting) {
-                    if (window.addRewards) {
-                        window.addRewards(100);
-                    }
+                    addRewardsSafely(activeId, 100);
                     
                     // Show special completion notification
                     showNotification('success', '🎉 Task completed! +100 reward points earned!', 'Task Completed & Rewarded!');
@@ -221,11 +246,15 @@ const TaskBoard = () => {
         fetchTasks(); // Refresh list to get new/updated task
     };
 
-    // Filter tasks based on selected filter
-    const getFilteredTasks = () => {
+    // Filter tasks based on selected filter (memoized for performance)
+    const filteredTasks = useMemo(() => {
+        if (!user) return []; // No user, no tasks
+        
         switch (filter) {
             case 'my':
                 return tasks.filter(task => {
+                    if (!task || !task.assignedTo) return false;
+                    
                     // Handle both single assignee and multi-assignee scenarios
                     return task.assignedTo && (
                         (Array.isArray(task.assignedTo) && task.assignedTo.some(assignee => assignee._id === user._id)) ||
@@ -233,13 +262,11 @@ const TaskBoard = () => {
                     );
                 });
             case 'unassigned':
-                return tasks.filter(task => !task.assignedTo);
+                return tasks.filter(task => !task?.assignedTo);
             default:
                 return tasks;
         }
-    };
-
-    const filteredTasks = getFilteredTasks();
+    }, [tasks, filter, user]);
 
     if (loading) return <div className="p-8 text-center">Loading board...</div>;
 
