@@ -99,6 +99,7 @@ const UnifiedDashboard = () => {
             setTeamStats(teamResponse.data);
             
             // Fetch all tasks for team member tracking (Admin/PM only)
+            let userTasks = [];
             if (user?.role === 'Admin' || user?.role === 'Project Manager') {
                 const allTasksResponse = await api.get('/tasks');
                 const allTasks = allTasksResponse.data;
@@ -217,7 +218,6 @@ const UnifiedDashboard = () => {
 
                         member.tasksByAssigner = Object.values(tasksByAssigner);
                     }); // ✅ CLOSE outer forEach
-                } // ✅ CLOSE if block
                 
                 // Filter tasks for current user based on role
                 let userTasks;
@@ -233,7 +233,7 @@ const UnifiedDashboard = () => {
                         
                         return pmCreated;
                     });
-            } else if (user?.role === 'Admin') {
+                } else if (user?.role === 'Admin') {
                 // Admin sees all tasks
                 userTasks = allTasks;
             } else {
@@ -245,6 +245,11 @@ const UnifiedDashboard = () => {
                     )
                 );
             }
+        } else {
+            // Team Member: fetch only their assigned tasks
+            const myTasksResponse = await api.get('/tasks/my-tasks');
+            userTasks = myTasksResponse.data;
+        }
             
             setMyTasks(userTasks);
             
@@ -273,7 +278,8 @@ const UnifiedDashboard = () => {
             
             setLastUpdated(new Date());
             
-        } catch (err) {
+        }}
+         catch (err) {
             console.error('Dashboard error:', err);
             
             if (err.response?.status === 401) {
@@ -1195,8 +1201,8 @@ const UnifiedDashboard = () => {
                             )}
                         </ul>
                     </div>
-                )}
-            </div>
+                )
+            </div>)}
             
             {activeView === 'team' && (user?.role === 'Admin' || user?.role === 'Project Manager') && (
                 <div>
