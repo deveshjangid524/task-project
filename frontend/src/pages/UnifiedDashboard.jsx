@@ -26,7 +26,9 @@ import {
 
 const COLORS = ['#10b981', '#3b82f6', '#f59e0b', '#ef4444', '#8b5cf6'];
 
-const UnifiedDashboard = () => {
+const UnifiedDashboard = () => 
+    
+    {
     const { user } = useAuth();
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
@@ -598,6 +600,7 @@ const UnifiedDashboard = () => {
     }
 
     return (
+
         <div className="py-6 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto">
             {/* Header */}
             <div className="mb-8">
@@ -904,29 +907,28 @@ const UnifiedDashboard = () => {
                                     ×
                                 </button>
                             </div>
+                                    {/* Key Insights */}
+                                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                                        <div className="bg-blue-50 p-4 rounded-lg">
+                                            <h4 className="text-sm font-medium text-blue-900">Estimated Completion</h4>
+                                            <p className="text-lg font-semibold text-blue-600">
+                                                {aiResults.aiInsights?.estimatedCompletion || 'TBD'}
+                                            </p>
+                                        </div>
+                                        <div className="bg-green-50 p-4 rounded-lg">
+                                            <h4 className="text-sm font-medium text-green-900">Tasks Analyzed</h4>
+                                            <p className="text-lg font-semibold text-green-600">
+                                                {aiResults.originalTasks?.length || 0}
+                                            </p>
+                                        </div>
+                                        <div className="bg-purple-50 p-4 rounded-lg">
+                                            <h4 className="text-sm font-medium text-purple-900">Optimization Score</h4>
+                                            <p className="text-lg font-semibold text-purple-600">High</p>
+                                        </div>
+                                    </div>
 
-                            {/* Key Insights */}
-                            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-                                <div className="bg-blue-50 p-4 rounded-lg">
-                                    <h4 className="text-sm font-medium text-blue-900">Estimated Completion</h4>
-                                    <p className="text-lg font-semibold text-blue-600">
-                                        {aiResults.aiInsights?.estimatedCompletion || 'TBD'}
-                                    </p>
-                                </div>
-                                <div className="bg-green-50 p-4 rounded-lg">
-                                    <h4 className="text-sm font-medium text-green-900">Tasks Analyzed</h4>
-                                    <p className="text-lg font-semibold text-green-600">
-                                        {aiResults.originalTasks?.length || 0}
-                                    </p>
-                                </div>
-                                <div className="bg-purple-50 p-4 rounded-lg">
-                                    <h4 className="text-sm font-medium text-purple-900">Optimization Score</h4>
-                                    <p className="text-lg font-semibold text-purple-600">High</p>
-                                </div>
-                            </div>
-
-                            {/* Optimized Schedule */}
-                            {aiResults.optimizedSchedule?.optimizedSchedule && (
+                                    {/* Optimized Schedule */}
+                                    {aiResults.optimizedSchedule?.optimizedSchedule && (
                                 <div className="mb-6">
                                     <h4 className="text-md font-medium text-gray-900 mb-3">Optimized Task Schedule</h4>
                                     <div className="space-y-2 max-h-64 overflow-y-auto">
@@ -1010,8 +1012,6 @@ const UnifiedDashboard = () => {
                             )}
                         </div>
                     )}
-                </div>
-            )}
 
             {/* Personal Tasks View */}
             {activeView === 'personal' && (
@@ -1571,7 +1571,8 @@ const UnifiedDashboard = () => {
                                                 ))}
                                         </div>
                                     </div>
-                                )}
+                                </div>
+                            )}
 
                                 {/* Team Overdue Tasks (Admin/PM only) */}
                                 {(user?.role === 'Admin' || user?.role === 'Project Manager') && teamStats.overdueTasks.length > 0 && (
