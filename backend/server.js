@@ -19,7 +19,8 @@ app.use(cors({
     origin: [
         "http://localhost:3000",
         "https://task-project-36nd.onrender.com",
-        "https://task-project-psi-six.vercel.app"
+        "https://task-project-psi-six.vercel.app",
+        "https://task-project-git-main-deveshjangid524s-projects.vercel.app"
     ],
     methods: ["GET", "POST", "PUT", "DELETE"],
     credentials: true
