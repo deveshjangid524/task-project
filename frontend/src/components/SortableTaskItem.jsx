@@ -134,15 +134,39 @@ const SortableTaskItem = ({ task, onClick, onStatusChange }) => {
             )}
 
             <div className="flex items-center justify-between mt-3">
-                {task.assignedTo ? (
-                    <div className="flex items-center" title={task.assignedTo.name}>
-                        <img
-                            className="h-6 w-6 rounded-full border border-gray-200"
-                            src={`https://ui-avatars.com/api/?name=${task.assignedTo.name}&background=random`}
-                            alt={task.assignedTo.name}
-                        />
+                {task.assignedTo && (
+                    <div className="flex items-center">
+                        {Array.isArray(task.assignedTo) ? (
+                            // Multiple assignees - show first 2 with count
+                            <div className="flex -space-x-2">
+                                {task.assignedTo.slice(0, 2).map((assignee, index) => (
+                                    <div key={index} className="relative" title={typeof assignee === 'string' ? assignee : assignee.name}>
+                                        <img
+                                            className="h-6 w-6 rounded-full border border-gray-200"
+                                            src={`https://ui-avatars.com/api/?name=${typeof assignee === 'string' ? assignee : assignee.name}&background=random`}
+                                            alt={typeof assignee === 'string' ? assignee : assignee.name}
+                                        />
+                                    </div>
+                                ))}
+                                {task.assignedTo.length > 2 && (
+                                    <div className="h-6 w-6 rounded-full border border-gray-200 bg-gray-100 flex items-center justify-center text-xs text-gray-600 font-medium">
+                                        +{task.assignedTo.length - 2}
+                                    </div>
+                                )}
+                            </div>
+                        ) : (
+                            // Single assignee
+                            <div title={typeof task.assignedTo === 'string' ? task.assignedTo : task.assignedTo.name}>
+                                <img
+                                    className="h-6 w-6 rounded-full border border-gray-200"
+                                    src={`https://ui-avatars.com/api/?name=${typeof task.assignedTo === 'string' ? task.assignedTo : task.assignedTo.name}&background=random`}
+                                    alt={typeof task.assignedTo === 'string' ? task.assignedTo : task.assignedTo.name}
+                                />
+                            </div>
+                        )}
                     </div>
-                ) : (
+                )}
+                {!task.assignedTo && (
                     <div className="h-6 w-6 rounded-full border border-dashed border-gray-300 flex items-center justify-center bg-gray-50">
                         <span className="text-xs text-gray-400">?</span>
                     </div>

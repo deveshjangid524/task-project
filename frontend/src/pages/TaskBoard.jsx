@@ -17,6 +17,7 @@ import BoardColumn from '../components/BoardColumn';
 import api from '../services/api';
 import { Plus, Filter, User, Users } from 'lucide-react';
 import TaskModal from '../components/TaskModal';
+import TaskDetailsModal from '../components/TaskDetailsModal';
 import { useAuth } from '../context/AuthContext';
 import { showNotification } from '../components/NotificationSystem';
 
@@ -26,6 +27,7 @@ const TaskBoard = () => {
     const [tasks, setTasks] = useState([]);
     const [loading, setLoading] = useState(true);
     const [isModalOpen, setIsModalOpen] = useState(false);
+    const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false);
     const [selectedTask, setSelectedTask] = useState(null);
     const [filter, setFilter] = useState('all'); // 'all', 'my', 'unassigned'
     const { user } = useAuth();
@@ -255,10 +257,20 @@ const TaskBoard = () => {
         setIsModalOpen(true);
     };
 
+    const handleOpenDetailsModal = (task) => {
+        setSelectedTask(task);
+        setIsDetailsModalOpen(true);
+    };
+
     const handleCloseModal = () => {
         setSelectedTask(null);
         setIsModalOpen(false);
         fetchTasks(); // Refresh list to get new/updated task
+    };
+
+    const handleCloseDetailsModal = () => {
+        setSelectedTask(null);
+        setIsDetailsModalOpen(false);
     };
 
     // Filter tasks based on selected filter (memoized for performance)
@@ -405,7 +417,7 @@ const TaskBoard = () => {
                                 key={col}
                                 title={col}
                                 tasks={getTasksByStatus(col)}
-                                onTaskClick={handleOpenModal}
+                                onTaskClick={handleOpenDetailsModal}
                                 onStatusChange={handleQuickStatusChange}
                             />
                         ))}
@@ -418,6 +430,14 @@ const TaskBoard = () => {
                     task={selectedTask}
                     onClose={handleCloseModal}
                     allTasks={tasks}
+                />
+            )}
+
+            {isDetailsModalOpen && (
+                <TaskDetailsModal
+                    task={selectedTask}
+                    onClose={handleCloseDetailsModal}
+                    onStatusChange={handleQuickStatusChange}
                 />
             )}
         </div>
