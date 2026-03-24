@@ -273,6 +273,23 @@ const NotesSection = () => {
     };
 
     const handleDelete = async (noteId) => {
+        // Find the note to check permissions
+        const noteToDelete = notes.find(note => note._id === noteId);
+        
+        if (!noteToDelete) {
+            showNotification('error', 'Note not found', 'Error');
+            return;
+        }
+
+        // Check if user is authorized to delete
+        const isAdmin = user?.role === 'Admin';
+        const isCreator = noteToDelete.createdBy?._id === user?._id;
+        
+        if (!isAdmin && !isCreator) {
+            showNotification('error', 'Only Admins and the original creator of the note are allowed to delete notes', 'Permission Denied');
+            return;
+        }
+
         if (!confirm('Are you sure you want to delete this note?')) return;
 
         try {
@@ -281,7 +298,11 @@ const NotesSection = () => {
             fetchNotes();
         } catch (error) {
             console.error('Error deleting note:', error);
-            showNotification('error', 'Failed to delete note', 'Error');
+            if (error.response?.status === 403) {
+                showNotification('error', 'Only Admins and the original creator of the note are allowed to delete notes', 'Permission Denied');
+            } else {
+                showNotification('error', 'Failed to delete note', 'Error');
+            }
         }
     };
 
