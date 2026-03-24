@@ -535,7 +535,7 @@ const NotesSection = () => {
                                 </div>
                             )}
 
-                            {note.type === 'file' && note.fileUrl && (
+                            {note.type === 'file' && (
                                 <div className="space-y-2">
                                     <div className="flex items-center gap-2">
                                         <FileText className="w-4 h-4 text-blue-600" />
@@ -546,24 +546,63 @@ const NotesSection = () => {
                                             </span>
                                         )}
                                     </div>
+                                    
+                                    {/* Debug: Show file URL info */}
+                                    {process.env.NODE_ENV === 'development' && (
+                                        <div className="text-xs text-gray-400 bg-gray-100 p-2 rounded">
+                                            Debug: fileUrl = {note.fileUrl || 'undefined'}
+                                        </div>
+                                    )}
+                                    
                                     <div className="flex gap-2">
-                                        <a
-                                            href={note.fileUrl}
-                                            target="_blank"
-                                            rel="noopener noreferrer"
-                                            className="text-blue-600 hover:text-blue-800 underline flex items-center gap-1 text-sm"
+                                        {/* Always show View button for file types */}
+                                        <button
+                                            onClick={() => {
+                                                const fileUrl = note.fileUrl || note.content;
+                                                if (fileUrl) {
+                                                    // Construct full URL if needed
+                                                    const fullUrl = fileUrl.startsWith('http') 
+                                                        ? fileUrl 
+                                                        : `${window.location.origin}${fileUrl.startsWith('/') ? '' : '/'}${fileUrl}`;
+                                                    
+                                                    // Open in new tab
+                                                    window.open(fullUrl, '_blank', 'noopener,noreferrer');
+                                                } else {
+                                                    showNotification('error', 'File URL not found', 'Error');
+                                                }
+                                            }}
+                                            className="text-blue-600 hover:text-blue-800 underline flex items-center gap-1 text-sm cursor-pointer"
                                         >
                                             <Eye className="w-4 h-4" />
                                             View
-                                        </a>
-                                        <a
-                                            href={note.fileUrl}
-                                            download={note.fileName || 'document'}
-                                            className="text-green-600 hover:text-green-800 underline flex items-center gap-1 text-sm"
+                                        </button>
+                                        
+                                        <button
+                                            onClick={() => {
+                                                const fileUrl = note.fileUrl || note.content;
+                                                if (fileUrl) {
+                                                    // Construct full URL if needed
+                                                    const fullUrl = fileUrl.startsWith('http') 
+                                                        ? fileUrl 
+                                                        : `${window.location.origin}${fileUrl.startsWith('/') ? '' : '/'}${fileUrl}`;
+                                                    
+                                                    // Create download link
+                                                    const link = document.createElement('a');
+                                                    link.href = fullUrl;
+                                                    link.download = note.fileName || 'document';
+                                                    link.target = '_blank';
+                                                    document.body.appendChild(link);
+                                                    link.click();
+                                                    document.body.removeChild(link);
+                                                } else {
+                                                    showNotification('error', 'File URL not found', 'Error');
+                                                }
+                                            }}
+                                            className="text-green-600 hover:text-green-800 underline flex items-center gap-1 text-sm cursor-pointer"
                                         >
                                             <Download className="w-4 h-4" />
                                             Download
-                                        </a>
+                                        </button>
                                     </div>
                                     {note.fileType && (
                                         <div className="text-xs text-gray-500">

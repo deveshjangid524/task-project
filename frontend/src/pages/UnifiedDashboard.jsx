@@ -67,6 +67,7 @@ const UnifiedDashboard = () => {
     const [aiOptimizing, setAiOptimizing] = useState(false);
     const [aiResults, setAiResults] = useState(null);
     const [showAiResults, setShowAiResults] = useState(false);
+    const [showCopilotPanel, setShowCopilotPanel] = useState(false);
     const [showOverdueDetails, setShowOverdueDetails] = useState(false);
 
     useEffect(() => {
@@ -331,6 +332,7 @@ const UnifiedDashboard = () => {
             const response = await api.post('/ai-optimizer/ai-optimize');
             setAiResults(response.data);
             setShowAiResults(true);
+            setShowCopilotPanel(true);
 
             // Reload stats after AI optimization
             await fetchDashboardData();
@@ -626,13 +628,13 @@ const UnifiedDashboard = () => {
                             <button
                                 onClick={handleScheduleTasks}
                                 disabled={aiOptimizing}
-                                className={`inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 ${aiOptimizing
+                                className={`inline-flex items-center justify-center w-10 h-10 rounded-full shadow-lg focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 ${aiOptimizing
                                         ? 'bg-gray-400 cursor-not-allowed'
                                         : 'bg-blue-600 hover:bg-blue-700'
                                     }`}
+                                title="AI Optimize Schedule"
                             >
-                                <Activity className="-ml-1 mr-2 h-5 w-5" />
-                                {aiOptimizing ? 'AI Optimizing...' : 'AI Optimize Schedule'}
+                                <Activity className="h-5 w-5 text-white" />
                             </button>
                         )}
                     </div>
@@ -1650,6 +1652,101 @@ const UnifiedDashboard = () => {
                             </div>
                         </div>
                     )}
+                </div>
+            )}
+
+            {/* AI Copilot Panel */}
+            {showCopilotPanel && aiResults && (
+                <div className="fixed bottom-4 right-4 w-96 max-h-[80vh] bg-white rounded-lg shadow-2xl border border-gray-200 z-50 flex flex-col">
+                    {/* Header */}
+                    <div className="flex items-center justify-between p-4 border-b border-gray-200 bg-gradient-to-r from-blue-500 to-purple-600 text-white rounded-t-lg">
+                        <div className="flex items-center space-x-2">
+                            <Activity className="h-5 w-5" />
+                            <h3 className="font-semibold">AI Schedule Assistant</h3>
+                        </div>
+                        <button
+                            onClick={() => setShowCopilotPanel(false)}
+                            className="text-white hover:text-gray-200 transition-colors"
+                        >
+                            <X className="h-5 w-5" />
+                        </button>
+                    </div>
+
+                    {/* Content */}
+                    <div className="flex-1 overflow-y-auto p-4 space-y-4">
+                        {/* Summary */}
+                        <div className="bg-blue-50 p-3 rounded-lg">
+                            <h4 className="text-sm font-medium text-blue-900 mb-2">Optimization Summary</h4>
+                            <div className="grid grid-cols-2 gap-2 text-xs">
+                                <div>
+                                    <span className="text-gray-600">Tasks Analyzed:</span>
+                                    <span className="ml-1 font-semibold text-blue-600">{aiResults.originalTasks?.length || 0}</span>
+                                </div>
+                                <div>
+                                    <span className="text-gray-600">Est. Completion:</span>
+                                    <span className="ml-1 font-semibold text-blue-600">{aiResults.aiInsights?.estimatedCompletion || 'TBD'}</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Optimized Schedule */}
+                        {aiResults.optimizedSchedule?.optimizedSchedule && (
+                            <div>
+                                <h4 className="text-sm font-medium text-gray-900 mb-2">Optimized Schedule</h4>
+                                <div className="space-y-2 max-h-48 overflow-y-auto">
+                                    {aiResults.optimizedSchedule.optimizedSchedule.map((task, index) => (
+                                        <div key={index} className="flex items-center justify-between p-2 bg-gray-50 rounded text-xs">
+                                            <div className="flex-1">
+                                                <p className="font-medium text-gray-900">{task.title}</p>
+                                                <p className="text-gray-500">Assigned: {task.assignedTo}</p>
+                                            </div>
+                                            <div className="text-right">
+                                                <p className="text-gray-600">{task.priority}</p>
+                                                <p className="text-gray-500">{task.estimatedTime}</p>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
+
+                        {/* Recommendations */}
+                        {aiResults.aiInsights?.recommendations?.length > 0 && (
+                            <div>
+                                <h4 className="text-sm font-medium text-gray-900 mb-2">Recommendations</h4>
+                                <ul className="space-y-1">
+                                    {aiResults.aiInsights.recommendations.slice(0, 3).map((rec, index) => (
+                                        <li key={index} className="flex items-start text-xs text-gray-700">
+                                            <span className="w-1 h-1 bg-blue-600 rounded-full mt-1.5 mr-2 flex-shrink-0"></span>
+                                            {rec}
+                                        </li>
+                                    ))}
+                                </ul>
+                            </div>
+                        )}
+
+                        {/* Bottlenecks */}
+                        {aiResults.aiInsights?.bottlenecks?.length > 0 && (
+                            <div>
+                                <h4 className="text-sm font-medium text-gray-900 mb-2">Potential Bottlenecks</h4>
+                                <div className="space-y-1">
+                                    {aiResults.aiInsights.bottlenecks.slice(0, 2).map((bottleneck, index) => (
+                                        <div key={index} className="flex items-start p-2 bg-yellow-50 rounded text-xs">
+                                            <AlertTriangle className="w-3 h-3 text-yellow-600 mt-0.5 mr-1 flex-shrink-0" />
+                                            <span className="text-yellow-800">{bottleneck}</span>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
+                    </div>
+
+                    {/* Footer */}
+                    <div className="p-3 border-t border-gray-200 bg-gray-50 rounded-b-lg">
+                        <p className="text-xs text-gray-500 text-center">
+                            Powered by Mistral AI • {new Date().toLocaleTimeString()}
+                        </p>
+                    </div>
                 </div>
             )}
         </div>

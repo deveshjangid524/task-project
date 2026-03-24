@@ -187,9 +187,9 @@ const TaskBoard = () => {
     );
 
     const getTasksByStatus = (status) => {
-        // Try both exact match and case-insensitive match
-        const exactMatch = tasks.filter(task => task.status === status);
-        const caseInsensitiveMatch = tasks.filter(task => task.status && task.status.toLowerCase() === status.toLowerCase());
+        // Try both exact match and case-insensitive match on filtered tasks
+        const exactMatch = filteredTasks.filter(task => task.status === status);
+        const caseInsensitiveMatch = filteredTasks.filter(task => task.status && task.status.toLowerCase() === status.toLowerCase());
         
         // Use case-insensitive match as fallback
         const tasksByStatus = exactMatch.length > 0 ? exactMatch : caseInsensitiveMatch;
@@ -268,16 +268,55 @@ const TaskBoard = () => {
         switch (filter) {
             case 'my':
                 return tasks.filter(task => {
-                    if (!task || !task.assignedTo) return false;
+                    if (!task) return false;
                     
-                    // Handle both single assignee and multi-assignee scenarios
-                    return task.assignedTo && (
-                        (Array.isArray(task.assignedTo) && task.assignedTo.some(assignee => assignee._id === user._id)) ||
-                        (task.assignedTo._id === user._id)
-                    );
+                    // Handle different assignedTo structures
+                    const assignedTo = task.assignedTo;
+                    
+                    // If assignedTo is an array, check if user is in the array
+                    if (Array.isArray(assignedTo)) {
+                        return assignedTo.some(assignee => {
+                            if (!assignee) return false;
+                            // Handle both string IDs and object IDs
+                            return (typeof assignee === 'string' && assignee === user._id) ||
+                                   (assignee._id && assignee._id.toString() === user._id) ||
+                                   (assignee.toString && assignee.toString() === user._id);
+                        });
+                    }
+                    
+                    // If assignedTo is a string, check direct match
+                    if (typeof assignedTo === 'string') {
+                        return assignedTo === user._id;
+                    }
+                    
+                    // If assignedTo is an object, check _id
+                    if (assignedTo && assignedTo._id) {
+                        return assignedTo._id.toString() === user._id;
+                    }
+                    
+                    return false;
                 });
             case 'unassigned':
-                return tasks.filter(task => !task?.assignedTo);
+                return tasks.filter(task => {
+                    if (!task) return false;
+                    
+                    const assignedTo = task.assignedTo;
+                    
+                    // Task is unassigned if:
+                    // 1. assignedTo is null or undefined
+                    // 2. assignedTo is an empty array
+                    // 3. assignedTo is an empty string
+                    if (assignedTo === null || assignedTo === undefined || assignedTo === '') {
+                        return true;
+                    }
+                    
+                    // If assignedTo is an array, check if it's empty
+                    if (Array.isArray(assignedTo)) {
+                        return assignedTo.length === 0;
+                    }
+                    
+                    return false;
+                });
             default:
                 return tasks;
         }
