@@ -317,6 +317,17 @@ const Profile = () => {
         }
     };
 
+    // Helper function to get full image URL
+    const getImageUrl = (imagePath) => {
+        if (!imagePath) return null;
+        // If it's already a full URL, return as is
+        if (imagePath.startsWith('http')) {
+            return imagePath;
+        }
+        // Otherwise, construct the URL from the backend
+        return `${api.defaults.baseURL?.replace('/api', '') || 'https://task-project-36nd.onrender.com'}/uploads/${imagePath.split('/').pop()}`;
+    };
+
     if (loading) return (
         <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 flex items-center justify-center">
             <div className="text-center">
@@ -366,7 +377,7 @@ const Profile = () => {
                                 }`}>
                                     {profileData?.profileImage || imagePreview ? (
                                         <img 
-                                            src={imagePreview || profileData?.profileImage} 
+                                            src={imagePreview || getImageUrl(profileData?.profileImage)} 
                                             alt="Profile" 
                                             className="w-full h-full object-cover"
                                         />

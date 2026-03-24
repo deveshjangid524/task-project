@@ -1,4 +1,38 @@
 const User = require('../models/User');
+const multer = require('multer');
+const path = require('path');
+const fs = require('fs');
+
+// Configure multer for file uploads
+const storage = multer.diskStorage({
+    destination: function (req, file, cb) {
+        const uploadDir = 'uploads/profile-images/';
+        if (!fs.existsSync(uploadDir)) {
+            fs.mkdirSync(uploadDir, { recursive: true });
+        }
+        cb(null, uploadDir);
+    },
+    filename: function (req, file, cb) {
+        const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+        cb(null, 'profile-' + req.user._id + '-' + uniqueSuffix + path.extname(file.originalname));
+    }
+});
+
+const fileFilter = (req, file, cb) => {
+    // Accept images only
+    if (!file.mimetype.startsWith('image/')) {
+        return cb(new Error('Only image files are allowed'), false);
+    }
+    cb(null, true);
+};
+
+const upload = multer({
+    storage: storage,
+    limits: {
+        fileSize: 5 * 1024 * 1024 // 5MB limit
+    },
+    fileFilter: fileFilter
+});
 
 // @desc    Get user profile
 // @route   GET /api/users/profile
@@ -73,4 +107,86 @@ const getUsers = async (req, res) => {
     }
 };
 
-module.exports = { getUserProfile, updateUserProfile, getUsers };
+// @desc    Upload profile image
+// @route   POST /api/users/upload-profile-image
+// @access  Private
+const uploadProfileImage = async (req, res) => {
+    try {
+        console.log('Uploading profile image for user:', req.user._id);
+        
+        const user = await User.findById(req.user._id);
+        if (!user) {
+            return res.status(404).json({ message: 'User not found' });
+        }
+
+        if (!req.file) {
+            return res.status(400).json({ message: 'No file uploaded' });
+        }
+
+        // Delete old profile image if exists
+        if (user.profileImage) {
+            const oldImagePath = path.join(__dirname, '..', user.profileImage);
+            if (fs.existsSync(oldImagePath)) {
+                fs.unlinkSync(oldImagePath);
+            }
+        }
+
+        // Update user with new profile image path
+        user.profileImage = req.file.path;
+        await user.save();
+
+        console.log('Profile image uploaded successfully:', req.file.path);
+        
+        res.json({
+            profileImage: req.file.path,
+            message: 'Profile image uploaded successfully'
+        });
+    } catch (error) {
+        console.error('Error uploading profile image:', error);
+        res.status(500).json({ message: 'Server Error' });
+    }
+};
+
+// @desc    Remove profile image
+// @route   DELETE /api/users/profile-image
+// @access  Private
+const removeProfileImage = async (req, res) => {
+    try {
+        console.log('Removing profile image for user:', req.user._id);
+        
+        const user = await User.findById(req.user._id);
+        if (!user) {
+            return res.status(404).json({ message: 'User not found' });
+        }
+
+        // Delete old profile image if exists
+        if (user.profileImage) {
+            const imagePath = path.join(__dirname, '..', user.profileImage);
+            if (fs.existsSync(imagePath)) {
+                fs.unlinkSync(imagePath);
+            }
+        }
+
+        // Remove profile image from user document
+        user.profileImage = null;
+        await user.save();
+
+        console.log('Profile image removed successfully');
+        
+        res.json({
+            message: 'Profile image removed successfully'
+        });
+    } catch (error) {
+        console.error('Error removing profile image:', error);
+        res.status(500).json({ message: 'Server Error' });
+    }
+};
+
+module.exports = { 
+    getUserProfile, 
+    updateUserProfile, 
+    getUsers, 
+    uploadProfileImage,
+    removeProfileImage,
+    upload
+};

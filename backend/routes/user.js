@@ -1,11 +1,17 @@
 const express = require('express');
 const router = express.Router();
-const { getUserProfile, updateUserProfile, getUsers } = require('../controllers/userController');
+const { getUserProfile, updateUserProfile, getUsers, uploadProfileImage, removeProfileImage, upload } = require('../controllers/userController');
 const { protect, authorize } = require('../middleware/authMiddleware');
 
 router.route('/profile')
     .get(protect, getUserProfile)
     .put(protect, updateUserProfile);
+
+router.route('/upload-profile-image')
+    .post(protect, upload.single('profileImage'), uploadProfileImage);
+
+router.route('/profile-image')
+    .delete(protect, removeProfileImage);
 
 router.route('/')
     .get(protect, getUsers);
