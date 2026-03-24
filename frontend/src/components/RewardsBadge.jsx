@@ -7,39 +7,75 @@ const RewardsBadge = () => {
     const { user } = useAuth();
     const [rewards, setRewards] = useState(0);
     const [showAnimation, setShowAnimation] = useState(false);
+    const [rewardedTasks, setRewardedTasks] = useState(new Set());
 
     useEffect(() => {
-        // Load rewards from localStorage or API
+        // Load rewards and rewarded tasks from localStorage
         const loadRewards = async () => {
             try {
-                // Try to get from localStorage first
-                const storedRewards = localStorage.getItem(`rewards_${user?._id}`);
+                if (!user?._id) return;
+
+                // Load rewards total
+                const storedRewards = localStorage.getItem(`rewards_${user._id}`);
                 if (storedRewards) {
                     setRewards(parseInt(storedRewards, 10));
                 }
-                
-                // Optionally sync with backend
-                // const response = await api.get(`/users/${user?._id}/rewards`);
-                // setRewards(response.data.totalRewards || 0);
+
+                // Load rewarded tasks to prevent duplicates
+                const storedRewardedTasks = localStorage.getItem(`rewardedTasks_${user._id}`);
+                if (storedRewardedTasks) {
+                    setRewardedTasks(new Set(JSON.parse(storedRewardedTasks)));
+                }
+
+                // Optional: Sync with backend when available
+                try {
+                    const response = await api.get(`/users/${user._id}/rewards`);
+                    if (response.data?.totalRewards !== undefined) {
+                        setRewards(response.data.totalRewards);
+                        localStorage.setItem(`rewards_${user._id}`, response.data.totalRewards.toString());
+                    }
+                } catch (backendError) {
+                    console.log('Backend sync not available, using localStorage only');
+                }
             } catch (error) {
                 console.error('Error loading rewards:', error);
             }
         };
 
-        if (user?._id) {
-            loadRewards();
-        }
+        loadRewards();
     }, [user]);
 
-    const addRewards = useCallback((points) => {
+    const addRewards = useCallback((points, taskId = null) => {
+        // Check if this task was already rewarded (if taskId provided)
+        if (taskId && rewardedTasks.has(taskId)) {
+            console.log(`Task ${taskId} already rewarded, skipping`);
+            return false;
+        }
+
         const newRewards = rewards + points;
         setRewards(newRewards);
-        localStorage.setItem(`rewards_${user?._id}`, newRewards.toString());
+        
+        // Save to localStorage
+        localStorage.setItem(`rewards_${user._id}`, newRewards.toString());
+        
+        // Track rewarded task to prevent duplicates
+        if (taskId) {
+            const newRewardedTasks = new Set(rewardedTasks);
+            newRewardedTasks.add(taskId);
+            setRewardedTasks(newRewardedTasks);
+            localStorage.setItem(`rewardedTasks_${user._id}`, JSON.stringify([...newRewardedTasks]));
+        }
+        
+        // Try to sync with backend
+        api.post(`/users/${user._id}/rewards`, { points, taskId })
+            .catch(error => console.log('Backend sync failed, rewards saved locally'));
         
         // Show animation
         setShowAnimation(true);
         setTimeout(() => setShowAnimation(false), 2000);
-    }, [rewards, user?._id]);
+        
+        return true;
+    }, [rewards, rewardedTasks, user._id]);
 
     // Make this function globally accessible
     useEffect(() => {
@@ -63,8 +99,7 @@ const RewardsBadge = () => {
                     +100!
                 </div>
             )}
-            
-                    </div>
+        </div>
     );
 };
 

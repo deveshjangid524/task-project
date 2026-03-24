@@ -478,24 +478,26 @@ const UnifiedDashboard = () => {
             if (newStatus === 'Completed') {
                 const task = updatedTasks.find(t => t._id === taskId);
 
-                // Add to recent completions
-                setRecentCompletions(prev => [
-                    {
-                        taskId: task._id,
-                        title: task.title,
-                        completedAt: new Date(),
-                        previousStatus: 'In Progress',
-                        comments: taskCompletionData.comments,
-                        documentCount: taskCompletionData.documents.length
-                    },
-                    ...prev.slice(0, 4) // Keep only last 5 completions
-                ]);
-
-                let message = `Task "${task.title}" completed successfully!`;
-                if (taskCompletionData.documents.length > 0) {
-                    message += ` (${taskCompletionData.documents.length} document${taskCompletionData.documents.length > 1 ? 's' : ''} uploaded)`;
+                // Add rewards for completing task
+                if (window.addRewards) {
+                    try {
+                        const rewardAdded = window.addRewards(100, taskId);
+                        if (rewardAdded) {
+                            showNotification('success', `🎉 Task "${task.title}" completed! +100 reward points earned!`, 'Task Completed & Rewarded!');
+                        } else {
+                            showNotification('success', `Task "${task.title}" completed! (Already rewarded)`, 'Task Completed');
+                        }
+                    } catch (error) {
+                        console.error('Error adding rewards:', error);
+                        showNotification('success', `Task "${task.title}" completed successfully!`, 'Task Completed');
+                    }
+                } else {
+                    let message = `Task "${task.title}" completed successfully!`;
+                    if (taskCompletionData.documents.length > 0) {
+                        message += ` (${taskCompletionData.documents.length} document${taskCompletionData.documents.length > 1 ? 's' : ''} uploaded)`;
+                    }
+                    showNotification('success', message, 'Task Completed');
                 }
-                showNotification('success', message, 'Task Completed');
             } else if (newStatus === 'In Progress') {
                 showNotification('info', 'Task marked as in progress', 'Task Updated');
             }
