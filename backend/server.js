@@ -18,7 +18,8 @@ const PORT = process.env.PORT || 5000;
 app.use(cors({
     origin: [
         "http://localhost:3000",
-        "https://task-project-36nd.onrender.com"
+        "https://task-project-36nd.onrender.com",
+        "https://task-project-psi-six.vercel.app"
     ],
     methods: ["GET", "POST", "PUT", "DELETE"],
     credentials: true
