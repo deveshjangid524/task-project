@@ -79,8 +79,17 @@ const TaskBoard = () => {
                 return;
             }
             
+            console.log('🔄 Fetching tasks for user:', user._id, user.role);
+            
             const response = await api.get('/tasks');
             const allTasks = response.data;
+            
+            console.log('📊 All tasks fetched:', allTasks.length);
+            console.log('🔍 Sample task structure:', allTasks.slice(0, 2).map(t => ({
+                title: t.title,
+                assignedTo: t.assignedTo,
+                createdBy: t.createdBy
+            })));
             
             // Filter tasks based on user role - FIXED LOGIC with null checks
             let filteredTasks = [];
@@ -88,6 +97,7 @@ const TaskBoard = () => {
             if (user.role === 'Admin') {
                 // Admin sees all tasks
                 filteredTasks = allTasks;
+                console.log('👑 Admin: Showing all tasks:', filteredTasks.length);
             } else if (user.role === 'Project Manager') {
                 // Project Manager sees all tasks they created (for oversight)
                 // This includes tasks they assigned to team members
@@ -102,26 +112,48 @@ const TaskBoard = () => {
                         (task.createdBy === user._id)
                     );
                     
-                    // Fallback: If createdBy is undefined, show task to PM for now
-                    // This handles cases where createdBy wasn't set properly
-                    const showTask = pmCreated || !task.createdBy;
+                    // PM also sees tasks assigned to them
+                    const pmAssigned = task.assignedTo && (
+                        (Array.isArray(task.assignedTo) && task.assignedTo.some(assignee => 
+                            (typeof assignee === 'string' && assignee === user._id) ||
+                            (assignee._id && assignee._id.toString() === user._id) ||
+                            (assignee.toString && assignee.toString() === user._id)
+                        )) ||
+                        (typeof task.assignedTo === 'string' && task.assignedTo === user._id) ||
+                        (task.assignedTo._id && task.assignedTo._id.toString() === user._id)
+                    );
+                    
+                    const showTask = pmCreated || pmAssigned;
+                    
+                    if (showTask) {
+                        console.log('👨‍💼 PM showing task:', task.title, 'created:', pmCreated, 'assigned:', pmAssigned);
+                    }
                     
                     return showTask;
                 });
+                console.log('👨‍💼 PM: Showing filtered tasks:', filteredTasks.length);
             } else {
                 // Team Member sees only tasks assigned to them (handle multi-assignee)
                 filteredTasks = allTasks.filter(task => {
                     if (!task) return false;
                     
-                    return task.assignedTo && (
+                    const isAssigned = task.assignedTo && (
                         (Array.isArray(task.assignedTo) && task.assignedTo.some(assignee => 
                             (typeof assignee === 'string' && assignee === user._id) ||
-                            (assignee._id && assignee._id === user._id)
+                            (assignee._id && assignee._id.toString() === user._id) ||
+                            (assignee.toString && assignee.toString() === user._id)
                         )) ||
                         (typeof task.assignedTo === 'string' && task.assignedTo === user._id) ||
-                        (task.assignedTo._id && task.assignedTo._id === user._id)
+                        (task.assignedTo._id && task.assignedTo._id.toString() === user._id)
                     );
+                    
+                    if (isAssigned) {
+                        console.log('👤 Team Member showing task:', task.title);
+                    }
+                    
+                    return isAssigned;
                 });
+                console.log('👤 Team Member: Showing assigned tasks:', filteredTasks.length);
             }
             
             setTasks(filteredTasks);
@@ -277,39 +309,70 @@ const TaskBoard = () => {
     const filteredTasks = useMemo(() => {
         if (!user) return []; // No user, no tasks
         
+        console.log('🔍 Filtering tasks for user:', user._id, user.role);
+        console.log('📋 Available tasks:', tasks.length);
+        console.log('🎯 Filter type:', filter);
+        
         switch (filter) {
             case 'my':
-                return tasks.filter(task => {
+                const myTasks = tasks.filter(task => {
                     if (!task) return false;
+                    
+                    console.log('🔍 Checking task:', task.title, 'assignedTo:', task.assignedTo);
                     
                     // Handle different assignedTo structures
                     const assignedTo = task.assignedTo;
                     
                     // If assignedTo is an array, check if user is in the array
                     if (Array.isArray(assignedTo)) {
-                        return assignedTo.some(assignee => {
+                        const isAssigned = assignedTo.some(assignee => {
                             if (!assignee) return false;
-                            // Handle both string IDs and object IDs
-                            return (typeof assignee === 'string' && assignee === user._id) ||
-                                   (assignee._id && assignee._id.toString() === user._id) ||
-                                   (assignee.toString && assignee.toString() === user._id);
+                            
+                            // Handle string IDs
+                            if (typeof assignee === 'string') {
+                                return assignee === user._id;
+                            }
+                            
+                            // Handle object IDs with _id
+                            if (assignee._id) {
+                                return assignee._id.toString() === user._id;
+                            }
+                            
+                            // Handle toString method
+                            if (assignee.toString && typeof assignee.toString === 'function') {
+                                return assignee.toString() === user._id;
+                            }
+                            
+                            return false;
                         });
+                        
+                        console.log('📊 Array assignment check:', isAssigned);
+                        return isAssigned;
                     }
                     
                     // If assignedTo is a string, check direct match
                     if (typeof assignedTo === 'string') {
-                        return assignedTo === user._id;
+                        const isAssigned = assignedTo === user._id;
+                        console.log('📊 String assignment check:', isAssigned);
+                        return isAssigned;
                     }
                     
                     // If assignedTo is an object, check _id
                     if (assignedTo && assignedTo._id) {
-                        return assignedTo._id.toString() === user._id;
+                        const isAssigned = assignedTo._id.toString() === user._id;
+                        console.log('📊 Object assignment check:', isAssigned);
+                        return isAssigned;
                     }
                     
+                    console.log('❌ No assignment match found');
                     return false;
                 });
+                
+                console.log('✅ My tasks filtered:', myTasks.length);
+                return myTasks;
+                
             case 'unassigned':
-                return tasks.filter(task => {
+                const unassignedTasks = tasks.filter(task => {
                     if (!task) return false;
                     
                     const assignedTo = task.assignedTo;
@@ -329,7 +392,12 @@ const TaskBoard = () => {
                     
                     return false;
                 });
+                
+                console.log('✅ Unassigned tasks filtered:', unassignedTasks.length);
+                return unassignedTasks;
+                
             default:
+                console.log('✅ All tasks returned:', tasks.length);
                 return tasks;
         }
     }, [tasks, filter, user]);
