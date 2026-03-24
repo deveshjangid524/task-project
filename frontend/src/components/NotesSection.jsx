@@ -76,6 +76,14 @@ const NotesSection = () => {
     const handleFileUpload = async (file) => {
         if (!file) return;
 
+        console.log('Starting file upload for:', file);
+        console.log('File details:', {
+            name: file.name,
+            type: file.type,
+            size: file.size,
+            lastModified: file.lastModified
+        });
+
         // Check file size (max 10MB)
         const maxSize = 10 * 1024 * 1024; // 10MB
         if (file.size > maxSize) {
@@ -98,6 +106,8 @@ const NotesSection = () => {
             'image/gif'
         ];
 
+        console.log('File type check:', file.type, allowedTypes.includes(file.type));
+
         if (!allowedTypes.includes(file.type)) {
             showNotification('error', 'File type not supported. Please upload PDF, Word, Excel, PowerPoint, text, or image files.', 'Error');
             return;
@@ -107,8 +117,13 @@ const NotesSection = () => {
         const formData = new FormData();
         formData.append('file', file);
 
+        console.log('FormData contents:');
+        for (let [key, value] of formData.entries()) {
+            console.log(key, value);
+        }
+
         try {
-            console.log('Uploading file:', file.name, file.type, file.size);
+            console.log('Sending upload request to /notes/upload');
             
             // Upload to backend
             const response = await api.post('/notes/upload', formData, {
@@ -117,7 +132,16 @@ const NotesSection = () => {
                 }
             });
             
+            console.log('Upload response:', response);
+            console.log('Response data:', response.data);
+            
             const fileInfo = response.data;
+            
+            if (!fileInfo) {
+                throw new Error('No file info returned from server');
+            }
+
+            console.log('Setting newNote with file info:', fileInfo);
             
             setNewNote({
                 ...newNote,
@@ -131,7 +155,32 @@ const NotesSection = () => {
             showNotification('success', 'File uploaded successfully', 'Success');
         } catch (error) {
             console.error('Error uploading file:', error);
-            showNotification('error', 'Failed to upload file', 'Error');
+            console.error('Error response:', error.response);
+            console.error('Error status:', error.response?.status);
+            console.error('Error data:', error.response?.data);
+            
+            // If upload fails, still save the file info locally as fallback
+            if (error.response?.status === 500) {
+                console.log('Backend upload failed, using local fallback');
+                
+                // Create a local file URL for display purposes
+                const localFileUrl = URL.createObjectURL(file);
+                
+                setNewNote({
+                    ...newNote,
+                    fileUrl: localFileUrl,
+                    fileName: file.name,
+                    fileSize: file.size,
+                    fileType: file.type,
+                    content: `Local file: ${file.name} (Backend upload unavailable)`
+                });
+                
+                setSelectedFile(file);
+                showNotification('warning', 'File saved locally (backend upload temporarily unavailable)', 'Warning');
+            } else {
+                const errorMessage = error.response?.data?.message || error.message || 'Failed to upload file';
+                showNotification('error', errorMessage, 'Error');
+            }
         } finally {
             setUploading(false);
         }
@@ -566,16 +615,20 @@ const NotesSection = () => {
                                                 console.log('Using fileUrl:', fileUrl);
                                                 
                                                 if (fileUrl) {
-                                                    // Construct full URL if needed
-                                                    const fullUrl = fileUrl.startsWith('http') 
-                                                        ? fileUrl 
-                                                        : `${window.location.origin}${fileUrl.startsWith('/') ? '' : '/'}${fileUrl}`;
-                                                    
-                                                    console.log('Full URL:', fullUrl);
-                                                    
-                                                    // Try to open in new tab
                                                     try {
-                                                        window.open(fullUrl, '_blank', 'noopener,noreferrer');
+                                                        // Handle local blob URLs differently
+                                                        if (fileUrl.startsWith('blob:')) {
+                                                            console.log('Opening local blob URL');
+                                                            window.open(fileUrl, '_blank', 'noopener,noreferrer');
+                                                        } else {
+                                                            // Construct full URL if needed
+                                                            const fullUrl = fileUrl.startsWith('http') 
+                                                                ? fileUrl 
+                                                                : `${window.location.origin}${fileUrl.startsWith('/') ? '' : '/'}${fileUrl}`;
+                                                            
+                                                            console.log('Full URL:', fullUrl);
+                                                            window.open(fullUrl, '_blank', 'noopener,noreferrer');
+                                                        }
                                                         showNotification('success', 'Opening file...', 'Success');
                                                     } catch (error) {
                                                         console.error('Error opening file:', error);
@@ -602,22 +655,34 @@ const NotesSection = () => {
                                                 console.log('Using fileUrl:', fileUrl);
                                                 
                                                 if (fileUrl) {
-                                                    // Construct full URL if needed
-                                                    const fullUrl = fileUrl.startsWith('http') 
-                                                        ? fileUrl 
-                                                        : `${window.location.origin}${fileUrl.startsWith('/') ? '' : '/'}${fileUrl}`;
-                                                    
-                                                    console.log('Full URL:', fullUrl);
-                                                    
-                                                    // Create download link
                                                     try {
-                                                        const link = document.createElement('a');
-                                                        link.href = fullUrl;
-                                                        link.download = note.fileName || 'document';
-                                                        link.target = '_blank';
-                                                        document.body.appendChild(link);
-                                                        link.click();
-                                                        document.body.removeChild(link);
+                                                        // Handle local blob URLs differently
+                                                        if (fileUrl.startsWith('blob:')) {
+                                                            console.log('Downloading local blob URL');
+                                                            const link = document.createElement('a');
+                                                            link.href = fileUrl;
+                                                            link.download = note.fileName || 'document';
+                                                            link.target = '_blank';
+                                                            document.body.appendChild(link);
+                                                            link.click();
+                                                            document.body.removeChild(link);
+                                                        } else {
+                                                            // Construct full URL if needed
+                                                            const fullUrl = fileUrl.startsWith('http') 
+                                                                ? fileUrl 
+                                                                : `${window.location.origin}${fileUrl.startsWith('/') ? '' : '/'}${fileUrl}`;
+                                                            
+                                                            console.log('Full URL:', fullUrl);
+                                                            
+                                                            // Create download link
+                                                            const link = document.createElement('a');
+                                                            link.href = fullUrl;
+                                                            link.download = note.fileName || 'document';
+                                                            link.target = '_blank';
+                                                            document.body.appendChild(link);
+                                                            link.click();
+                                                            document.body.removeChild(link);
+                                                        }
                                                         showNotification('success', 'Download started...', 'Success');
                                                     } catch (error) {
                                                         console.error('Error downloading file:', error);
