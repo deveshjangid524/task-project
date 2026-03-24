@@ -15,7 +15,7 @@ import {
 } from '@dnd-kit/sortable';
 import BoardColumn from '../components/BoardColumn';
 import api from '../services/api';
-import { Plus, Filter, User, Users } from 'lucide-react';
+import { Plus, Filter, User, Users, Search, Moon, Sun, BarChart3, CheckCircle, Clock, TrendingUp } from 'lucide-react';
 import TaskModal from '../components/TaskModal';
 import TaskDetailsModal from '../components/TaskDetailsModal';
 import { useAuth } from '../context/AuthContext';
@@ -30,10 +30,26 @@ const TaskBoard = () => {
     const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false);
     const [selectedTask, setSelectedTask] = useState(null);
     const [filter, setFilter] = useState('all'); // 'all', 'my', 'unassigned'
+    const [darkMode, setDarkMode] = useState(() => {
+        const savedTheme = localStorage.getItem('theme');
+        return savedTheme === 'dark' || (!savedTheme && window.matchMedia('(prefers-color-scheme: dark)').matches);
+    });
+    const [searchQuery, setSearchQuery] = useState('');
     const { user } = useAuth();
     
     // Track completed tasks to prevent duplicate rewards
     const [completedTasks, setCompletedTasks] = useState(new Set());
+
+    useEffect(() => {
+        // Apply dark mode to document
+        if (darkMode) {
+            document.documentElement.classList.add('dark');
+            localStorage.setItem('theme', 'dark');
+        } else {
+            document.documentElement.classList.remove('dark');
+            localStorage.setItem('theme', 'light');
+        }
+    }, [darkMode]);
 
     useEffect(() => {
         if (user && user._id) {
