@@ -221,12 +221,14 @@ const TaskBoard = () => {
     );
 
     const getTasksByStatus = (status) => {
-        // Try both exact match and case-insensitive match on filtered tasks
+        // Use the filteredTasks instead of raw tasks
         const exactMatch = filteredTasks.filter(task => task.status === status);
         const caseInsensitiveMatch = filteredTasks.filter(task => task.status && task.status.toLowerCase() === status.toLowerCase());
         
         // Use case-insensitive match as fallback
         const tasksByStatus = exactMatch.length > 0 ? exactMatch : caseInsensitiveMatch;
+        
+        console.log(`📋 Getting tasks for status "${status}":`, tasksByStatus.length);
         
         return tasksByStatus;
     };
