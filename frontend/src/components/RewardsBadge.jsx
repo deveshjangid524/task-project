@@ -64,15 +64,7 @@ const RewardsBadge = () => {
                 </div>
             )}
             
-            {/* Tooltip */}
-            <div className="absolute bottom-full right-0 mb-2 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50">
-                <div className="bg-gray-800 text-white text-xs rounded py-1 px-2 whitespace-nowrap">
-                    <div className="font-bold">Reward Points</div>
-                    <div>Complete tasks to earn points!</div>
-                    <div className="text-yellow-400">+100 per task completed</div>
-                </div>
-            </div>
-        </div>
+                    </div>
     );
 };
 
