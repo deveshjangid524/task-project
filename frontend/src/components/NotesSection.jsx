@@ -558,16 +558,31 @@ const NotesSection = () => {
                                         {/* Always show View button for file types */}
                                         <button
                                             onClick={() => {
+                                                console.log('View button clicked for note:', note);
+                                                console.log('fileUrl:', note.fileUrl);
+                                                console.log('content:', note.content);
+                                                
                                                 const fileUrl = note.fileUrl || note.content;
+                                                console.log('Using fileUrl:', fileUrl);
+                                                
                                                 if (fileUrl) {
                                                     // Construct full URL if needed
                                                     const fullUrl = fileUrl.startsWith('http') 
                                                         ? fileUrl 
                                                         : `${window.location.origin}${fileUrl.startsWith('/') ? '' : '/'}${fileUrl}`;
                                                     
-                                                    // Open in new tab
-                                                    window.open(fullUrl, '_blank', 'noopener,noreferrer');
+                                                    console.log('Full URL:', fullUrl);
+                                                    
+                                                    // Try to open in new tab
+                                                    try {
+                                                        window.open(fullUrl, '_blank', 'noopener,noreferrer');
+                                                        showNotification('success', 'Opening file...', 'Success');
+                                                    } catch (error) {
+                                                        console.error('Error opening file:', error);
+                                                        showNotification('error', 'Failed to open file', 'Error');
+                                                    }
                                                 } else {
+                                                    console.log('No file URL found');
                                                     showNotification('error', 'File URL not found', 'Error');
                                                 }
                                             }}
@@ -579,22 +594,37 @@ const NotesSection = () => {
                                         
                                         <button
                                             onClick={() => {
+                                                console.log('Download button clicked for note:', note);
+                                                console.log('fileUrl:', note.fileUrl);
+                                                console.log('content:', note.content);
+                                                
                                                 const fileUrl = note.fileUrl || note.content;
+                                                console.log('Using fileUrl:', fileUrl);
+                                                
                                                 if (fileUrl) {
                                                     // Construct full URL if needed
                                                     const fullUrl = fileUrl.startsWith('http') 
                                                         ? fileUrl 
                                                         : `${window.location.origin}${fileUrl.startsWith('/') ? '' : '/'}${fileUrl}`;
                                                     
+                                                    console.log('Full URL:', fullUrl);
+                                                    
                                                     // Create download link
-                                                    const link = document.createElement('a');
-                                                    link.href = fullUrl;
-                                                    link.download = note.fileName || 'document';
-                                                    link.target = '_blank';
-                                                    document.body.appendChild(link);
-                                                    link.click();
-                                                    document.body.removeChild(link);
+                                                    try {
+                                                        const link = document.createElement('a');
+                                                        link.href = fullUrl;
+                                                        link.download = note.fileName || 'document';
+                                                        link.target = '_blank';
+                                                        document.body.appendChild(link);
+                                                        link.click();
+                                                        document.body.removeChild(link);
+                                                        showNotification('success', 'Download started...', 'Success');
+                                                    } catch (error) {
+                                                        console.error('Error downloading file:', error);
+                                                        showNotification('error', 'Failed to download file', 'Error');
+                                                    }
                                                 } else {
+                                                    console.log('No file URL found');
                                                     showNotification('error', 'File URL not found', 'Error');
                                                 }
                                             }}
