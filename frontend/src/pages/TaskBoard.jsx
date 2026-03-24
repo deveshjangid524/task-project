@@ -438,6 +438,7 @@ const TaskBoard = () => {
                     task={selectedTask}
                     onClose={handleCloseDetailsModal}
                     onStatusChange={handleQuickStatusChange}
+                    onTaskUpdate={fetchTasks}
                 />
             )}
         </div>

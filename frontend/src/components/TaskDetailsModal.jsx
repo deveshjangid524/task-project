@@ -1,12 +1,58 @@
 import React, { useState } from 'react';
-import { X, Edit, MoreVertical, Calendar, Clock, User, Users, FileText, ExternalLink, CheckCircle, AlertCircle, Play, Eye } from 'lucide-react';
+import { X, Edit, MoreVertical, Calendar, Clock, User, Users, FileText, ExternalLink, CheckCircle, AlertCircle, Play, Eye, UserMinus } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import TaskModal from './TaskModal';
+import api from '../services/api';
+import { showNotification } from '../components/NotificationSystem';
 
-const TaskDetailsModal = ({ task, onClose, onStatusChange }) => {
+const TaskDetailsModal = ({ task, onClose, onStatusChange, onTaskUpdate }) => {
     const { user } = useAuth();
     const [showEditModal, setShowEditModal] = useState(false);
     const [showDropdown, setShowDropdown] = useState(false);
+
+    const handleRemoveAssignee = async (assigneeId) => {
+        if (!confirm('Are you sure you want to remove this user from the task?')) return;
+
+        try {
+            let updatedAssignedTo;
+            
+            console.log('=== REMOVE ASSIGNEE DEBUG ===');
+            console.log('Task.assignedTo:', JSON.stringify(task.assignedTo));
+            console.log('AssigneeId to remove:', assigneeId);
+            
+            if (Array.isArray(task.assignedTo)) {
+                // Remove from array
+                updatedAssignedTo = task.assignedTo.filter(assignee => {
+                    const id = typeof assignee === 'string' ? assignee : assignee._id;
+                    console.log('Checking assignee:', id, 'against:', assigneeId);
+                    return id !== assigneeId;
+                });
+                console.log('Filtered assignedTo:', updatedAssignedTo);
+            } else {
+                // Single assignee - set to empty array
+                updatedAssignedTo = [];
+                console.log('Single assignee, setting to empty array');
+            }
+
+            console.log('Sending to API:', { assignedTo: updatedAssignedTo });
+
+            await api.put(`/tasks/${task._id}`, {
+                assignedTo: updatedAssignedTo
+            });
+
+            showNotification('success', 'Assignee removed successfully', 'Task Updated');
+            
+            // Refresh the task data
+            if (onTaskUpdate) {
+                onTaskUpdate();
+            } else {
+                onClose();
+            }
+        } catch (error) {
+            console.error('Error removing assignee:', error);
+            showNotification('error', 'Failed to remove assignee', 'Error');
+        }
+    };
 
     if (!task) return null;
 
@@ -110,18 +156,35 @@ const TaskDetailsModal = ({ task, onClose, onStatusChange }) => {
                ));
     };
 
-    const getAssigneeNames = () => {
-        if (!task.assignedTo) return 'Unassigned';
+    const canRemoveAssignees = () => {
+        return canEdit(); // Same permissions as editing
+    };
+
+    const getAssigneeDisplay = () => {
+        if (!task.assignedTo) return { display: 'Unassigned', isArray: false, items: [] };
         
         if (Array.isArray(task.assignedTo)) {
-            return task.assignedTo.map(assignee => 
-                typeof assignee === 'string' ? assignee : assignee.name
-            ).join(', ');
+            const items = task.assignedTo.map(assignee => ({
+                id: typeof assignee === 'string' ? assignee : assignee._id,
+                name: typeof assignee === 'string' ? assignee : assignee.name || 'Unknown'
+            }));
+            return {
+                display: items.map(item => item.name).join(', '),
+                isArray: true,
+                items
+            };
         }
         
-        return typeof task.assignedTo === 'string' 
-            ? task.assignedTo 
-            : task.assignedTo.name || 'Unknown';
+        const singleItem = {
+            id: typeof task.assignedTo === 'string' ? task.assignedTo : task.assignedTo._id,
+            name: typeof task.assignedTo === 'string' ? task.assignedTo : task.assignedTo.name || 'Unknown'
+        };
+        
+        return {
+            display: singleItem.name,
+            isArray: false,
+            items: [singleItem]
+        };
     };
 
     const getCreatorName = () => {
@@ -247,7 +310,33 @@ const TaskDetailsModal = ({ task, onClose, onStatusChange }) => {
                                             <Users className="w-4 h-4 mr-2" />
                                             Assigned To
                                         </h4>
-                                        <p className="text-gray-700">{getAssigneeNames()}</p>
+                                        {getAssigneeDisplay().items.length > 0 ? (
+                                            <div className="space-y-2">
+                                                {getAssigneeDisplay().items.map((assignee) => (
+                                                    <div key={assignee.id} className="flex items-center justify-between p-2 bg-gray-50 rounded-lg">
+                                                        <div className="flex items-center">
+                                                            <img
+                                                                className="h-6 w-6 rounded-full border border-gray-200 mr-2"
+                                                                src={`https://ui-avatars.com/api/?name=${assignee.name}&background=random`}
+                                                                alt={assignee.name}
+                                                            />
+                                                            <span className="text-sm text-gray-700">{assignee.name}</span>
+                                                        </div>
+                                                        {canRemoveAssignees() && (
+                                                            <button
+                                                                onClick={() => handleRemoveAssignee(assignee.id)}
+                                                                className="p-1 text-red-500 hover:text-red-700 hover:bg-red-50 rounded transition-colors"
+                                                                title="Remove assignee"
+                                                            >
+                                                                <UserMinus className="w-4 h-4" />
+                                                            </button>
+                                                        )}
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        ) : (
+                                            <p className="text-gray-500 italic">Unassigned</p>
+                                        )}
                                     </div>
 
                                     {/* Created By */}

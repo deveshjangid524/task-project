@@ -138,38 +138,113 @@ const getTaskById = async (req, res) => {
 // @access  Private
 const updateTask = async (req, res) => {
     try {
+        console.log('=== TASK UPDATE START ===');
+        console.log('Task ID:', req.params.id);
+        console.log('Update data:', req.body);
+        console.log('User:', req.user._id, 'Role:', req.user.role);
+
         const task = await Task.findById(req.params.id);
 
-        if (task) {
-            const updates = req.body;
-            const historyDetails = [];
-
-            // Check fields and log changes
-            if (updates.status && updates.status !== task.status) {
-                historyDetails.push(`Status changed from ${task.status} to ${updates.status}`);
-            }
-            if (updates.assignedTo && String(updates.assignedTo) !== String(task.assignedTo)) {
-                historyDetails.push(`Assigned user updated`);
-            }
-
-            // Apply updates (in a real app, you'd carefully merge objects like timeEstimates)
-            Object.assign(task, updates);
-
-            if (historyDetails.length > 0) {
-                task.historyLogs.push({
-                    action: 'Updated',
-                    changedBy: req.user._id,
-                    details: historyDetails.join(', ')
-                });
-            }
-
-            const updatedTask = await task.save();
-            res.json(updatedTask);
-        } else {
-            res.status(404).json({ message: 'Task not found' });
+        if (!task) {
+            console.log('Task not found');
+            return res.status(404).json({ message: 'Task not found' });
         }
+
+        const updates = req.body;
+        const historyDetails = [];
+
+        // Check fields and log changes
+        if (updates.status && updates.status !== task.status) {
+            historyDetails.push(`Status changed from ${task.status} to ${updates.status}`);
+            console.log(`Status change: ${task.status} -> ${updates.status}`);
+        }
+        
+        if (updates.assignedTo !== undefined) {
+            const oldAssigned = JSON.stringify(task.assignedTo);
+            const newAssigned = JSON.stringify(updates.assignedTo);
+            
+            if (oldAssigned !== newAssigned) {
+                historyDetails.push(`Assigned user updated`);
+                console.log(`Assignee change: ${oldAssigned} -> ${newAssigned}`);
+            }
+        }
+
+        // Apply updates with proper validation
+        if (updates.assignedTo !== undefined) {
+            console.log('=== ASSIGNED TO UPDATE DEBUG ===');
+            console.log('Original assignedTo:', JSON.stringify(task.assignedTo));
+            console.log('Updates.assignedTo:', JSON.stringify(updates.assignedTo));
+            console.log('Type of updates.assignedTo:', typeof updates.assignedTo);
+            console.log('Is array:', Array.isArray(updates.assignedTo));
+            
+            // Handle assignedTo field - ensure it's always an array
+            if (Array.isArray(updates.assignedTo)) {
+                task.assignedTo = updates.assignedTo;
+                console.log('Set assignedTo to array:', task.assignedTo);
+            } else if (updates.assignedTo && typeof updates.assignedTo === 'string') {
+                // Convert string to array
+                task.assignedTo = [updates.assignedTo];
+                console.log('Converted string to array:', task.assignedTo);
+            } else if (updates.assignedTo && updates.assignedTo._id) {
+                // Handle object with _id
+                task.assignedTo = [updates.assignedTo._id];
+                console.log('Extracted _id to array:', task.assignedTo);
+            } else {
+                // Handle null, undefined, or empty values
+                task.assignedTo = [];
+                console.log('Set assignedTo to empty array');
+            }
+        }
+
+        // Update other fields
+        if (updates.status) task.status = updates.status;
+        if (updates.title) task.title = updates.title;
+        if (updates.description !== undefined) task.description = updates.description;
+        if (updates.category !== undefined) task.category = updates.category;
+        if (updates.priority) task.priority = updates.priority;
+        if (updates.timeEstimates) task.timeEstimates = { ...task.timeEstimates, ...updates.timeEstimates };
+        if (updates.scheduling) task.scheduling = { ...task.scheduling, ...updates.scheduling };
+        if (updates.attachmentLinks) task.attachmentLinks = updates.attachmentLinks;
+
+        if (historyDetails.length > 0) {
+            task.historyLogs.push({
+                action: 'Updated',
+                changedBy: req.user._id,
+                details: historyDetails.join(', '),
+                timestamp: new Date()
+            });
+        }
+
+        const updatedTask = await task.save();
+        
+        // Populate the response
+        const populatedTask = await Task.findById(updatedTask._id)
+            .populate('assignedTo', 'name email')
+            .populate('createdBy', 'name email role');
+
+        console.log('Task updated successfully');
+        res.json(populatedTask);
+        
     } catch (error) {
-        res.status(500).json({ message: 'Server Error' });
+        console.error('=== TASK UPDATE ERROR ===');
+        console.error('Error name:', error.name);
+        console.error('Error message:', error.message);
+        console.error('Error stack:', error.stack);
+        
+        // Check if this is a validation error
+        if (error.name === 'ValidationError') {
+            console.error("Validation errors:", Object.values(error.errors));
+            return res.status(400).json({
+                message: 'Validation Error',
+                errors: Object.values(error.errors).map(err => err.message)
+            });
+        }
+        
+        res.status(500).json({
+            message: 'Server Error',
+            error: error.message,
+            stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
+        });
     }
 };
 

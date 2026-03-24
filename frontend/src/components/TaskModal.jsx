@@ -1,7 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import api from '../services/api';
 import { showNotification } from './NotificationSystem';
-import { X } from 'lucide-react';
+import { X, Calendar, Clock, Users, Link2, AlertCircle, CheckCircle2, Target, FileText, Flag, Search, User, UserPlus, ChevronDown } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 
 const TaskModal = ({ task, onClose, allTasks }) => {
@@ -46,6 +46,12 @@ const TaskModal = ({ task, onClose, allTasks }) => {
     const [users, setUsers] = useState([]);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
+    
+    // Search dropdown state
+    const [searchTerm, setSearchTerm] = useState('');
+    const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+    const [filteredUsers, setFilteredUsers] = useState([]);
+    const dropdownRef = useRef(null);
 
     useEffect(() => {
         const fetchUsers = async () => {
@@ -191,35 +197,54 @@ const TaskModal = ({ task, onClose, allTasks }) => {
             <div className="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
 
                 <div
-                    className="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity"
+                    className="fixed inset-0 bg-gradient-to-br from-slate-900/90 to-blue-900/90 backdrop-blur-sm transition-opacity"
                     aria-hidden="true"
                     onClick={onClose}
                 ></div>
 
                 <span className="hidden sm:inline-block sm:align-middle sm:h-screen" aria-hidden="true">&#8203;</span>
 
-                <div className="relative inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full border-4 border-blue-500">
-                    <div className="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
-
-                        <div className="flex justify-between items-center mb-5">
-                            <h3 className="text-lg leading-6 font-medium text-gray-900" id="modal-title">
-                                {task ? 'Edit Task' : 'Create New Task'}
-                            </h3>
-                            <button onClick={onClose} className="text-gray-400 hover:text-gray-500">
-                                <X className="h-6 w-6" />
+                <div className="relative inline-block align-bottom bg-white/95 backdrop-blur-xl rounded-2xl text-left overflow-hidden shadow-2xl transform transition-all sm:my-8 sm:align-middle sm:max-w-2xl sm:w-full border border-white/20">
+                    {/* Header with gradient background */}
+                    <div className="bg-gradient-to-r from-blue-600 to-indigo-600 px-6 py-6 sm:px-8 sm:py-8">
+                        <div className="flex justify-between items-start">
+                            <div className="flex-1">
+                                <div className="flex items-center space-x-3 mb-2">
+                                    <div className="p-2 bg-white/20 rounded-lg backdrop-blur-sm">
+                                        <Target className="h-6 w-6 text-white" />
+                                    </div>
+                                    <h3 className="text-2xl font-bold text-white" id="modal-title">
+                                        {task ? 'Edit Task' : 'Create New Task'}
+                                    </h3>
+                                </div>
+                                <p className="text-blue-100 text-sm">
+                                    {task ? 'Update task details and assignments' : 'Add a new task to your project board'}
+                                </p>
+                            </div>
+                            <button 
+                                onClick={onClose} 
+                                className="ml-4 p-2 bg-white/20 hover:bg-white/30 rounded-lg backdrop-blur-sm transition-colors"
+                            >
+                                <X className="h-5 w-5 text-white" />
                             </button>
                         </div>
+                    </div>
+
+                    <div className="px-6 py-6 sm:px-8 sm:py-8 bg-gradient-to-b from-gray-50 to-white">
 
                         {error && (
-                            <div className="mb-4 text-sm text-red-600 bg-red-50 p-2 rounded">
-                                {error}
+                            <div className="mb-6 flex items-center p-4 bg-red-50 border border-red-200 rounded-xl">
+                                <AlertCircle className="h-5 w-5 text-red-500 mr-3 flex-shrink-0" />
+                                <span className="text-sm text-red-700">{error}</span>
                             </div>
                         )}
 
-                        <form onSubmit={handleSubmit} className="space-y-4">
-                            <div>
-                                <label className="block text-sm font-medium text-gray-700">
-                                    Title <span className="text-red-500">*</span>
+                        <form onSubmit={handleSubmit} className="space-y-6">
+                            {/* Title Section */}
+                            <div className="space-y-2">
+                                <label className="flex items-center text-sm font-semibold text-gray-900">
+                                    <FileText className="h-4 w-4 mr-2 text-blue-600" />
+                                    Task Title <span className="text-red-500 ml-1">*</span>
                                 </label>
                                 <input
                                     type="text"
@@ -227,112 +252,132 @@ const TaskModal = ({ task, onClose, allTasks }) => {
                                     required
                                     value={formData.title}
                                     onChange={handleChange}
-                                    className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                                    placeholder="Enter task title..."
+                                    className="block w-full px-4 py-3 border border-gray-200 rounded-xl shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all placeholder-gray-400"
                                 />
                             </div>
 
-                            <div>
-                                <label className="block text-sm font-medium text-gray-700">
+                            {/* Description Section */}
+                            <div className="space-y-2">
+                                <label className="flex items-center text-sm font-semibold text-gray-900">
+                                    <FileText className="h-4 w-4 mr-2 text-blue-600" />
                                     Description
                                 </label>
                                 <textarea
                                     name="description"
-                                    rows="3"
+                                    rows="4"
                                     value={formData.description}
                                     onChange={handleChange}
-                                    className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                                    placeholder="Provide detailed task description..."
+                                    className="block w-full px-4 py-3 border border-gray-200 rounded-xl shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all placeholder-gray-400 resize-none"
                                 ></textarea>
                             </div>
 
-                            <div className="grid grid-cols-2 gap-4">
-                                <div>
-                                    <label className="block text-sm font-medium text-gray-700">
+                            {/* Status and Priority Grid */}
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                                <div className="space-y-2">
+                                    <label className="flex items-center text-sm font-semibold text-gray-900">
+                                        <Flag className="h-4 w-4 mr-2 text-blue-600" />
                                         Status
                                     </label>
                                     <select
                                         name="status"
                                         value={formData.status}
                                         onChange={handleChange}
-                                        className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                                        className="block w-full px-4 py-3 border border-gray-200 rounded-xl shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
                                     >
-                                        <option value="To Do">To Do</option>
-                                        <option value="In Progress">In Progress</option>
-                                        <option value="In Review">In Review</option>
-                                        <option value="Completed">Completed</option>
-                                        <option value="Blocked">Blocked</option>
+                                        <option value="To Do">📝 To Do</option>
+                                        <option value="In Progress">🚀 In Progress</option>
+                                        <option value="In Review">👀 In Review</option>
+                                        <option value="Completed">✅ Completed</option>
+                                        <option value="Blocked">🚫 Blocked</option>
                                     </select>
                                 </div>
 
-                                <div>
-                                    <label className="block text-sm font-medium text-gray-700">
+                                <div className="space-y-2">
+                                    <label className="flex items-center text-sm font-semibold text-gray-900">
+                                        <Flag className="h-4 w-4 mr-2 text-blue-600" />
                                         Priority
                                     </label>
                                     <select
                                         name="priority"
                                         value={formData.priority}
                                         onChange={handleChange}
-                                        className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                                        className="block w-full px-4 py-3 border border-gray-200 rounded-xl shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
                                     >
-                                        <option value="Low">Low</option>
-                                        <option value="Medium">Medium</option>
-                                        <option value="High">High</option>
-                                        <option value="Critical">Critical</option>
+                                        <option value="Low">🟢 Low</option>
+                                        <option value="Medium">🔵 Medium</option>
+                                        <option value="High">🟠 High</option>
+                                        <option value="Critical">🔴 Critical</option>
                                     </select>
                                 </div>
                             </div>
 
-                            <div>
-                                <label className="block text-sm font-medium text-gray-700">
-                                    Assignees <span className="text-red-500">*</span> <span className="text-xs text-gray-500">(Select multiple team members)</span>
+                            {/* Assignees Section */}
+                            <div className="space-y-2">
+                                <label className="flex items-center text-sm font-semibold text-gray-900">
+                                    <Users className="h-4 w-4 mr-2 text-blue-600" />
+                                    Assignees <span className="text-red-500 ml-1">*</span>
+                                    <span className="ml-2 text-xs font-normal text-gray-500">(Select multiple team members)</span>
                                 </label>
-                                <select
-                                    multiple
-                                    name="assignedTo"
-                                    value={formData.assignedTo}
-                                    onChange={handleChange}
-                                    className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm h-24"
-                                    size="4"
-                                    required
-                                >
-                                    <option value="" disabled>
-                                        {formData.assignedTo.length === 0 
-                                            ? 'Select assignees...' 
-                                            : `${formData.assignedTo.length} member(s) selected`}
-                                    </option>
-                                    {users
-                                        .filter(u => {
-                                            // For PMs: show all team members except themselves
-                                            if (user?.role === 'Project Manager') {
+                                <div className="relative">
+                                    <select
+                                        multiple
+                                        name="assignedTo"
+                                        value={formData.assignedTo}
+                                        onChange={handleChange}
+                                        className="block w-full px-4 py-3 border border-gray-200 rounded-xl shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all h-32 appearance-none cursor-pointer"
+                                        size="4"
+                                        required
+                                    >
+                                        <option value="" disabled className="text-gray-400">
+                                            {formData.assignedTo.length === 0 
+                                                ? '👥 Select assignees...' 
+                                                : `🎯 ${formData.assignedTo.length} member(s) selected`}
+                                        </option>
+                                        {users
+                                            .filter(u => {
+                                                // For PMs: show all team members except themselves
+                                                if (user?.role === 'Project Manager') {
+                                                    return u.role === 'Team Member' && u._id !== user._id;
+                                                }
+                                                // For Admins: show all users except themselves
+                                                if (user?.role === 'Admin') {
+                                                    return u._id !== user._id;
+                                                }
+                                                // For Team Members: show other team members
                                                 return u.role === 'Team Member' && u._id !== user._id;
-                                            }
-                                            // For Admins: show all users except themselves
-                                            if (user?.role === 'Admin') {
-                                                return u._id !== user._id;
-                                            }
-                                            // For Team Members: show other team members
-                                            return u.role === 'Team Member' && u._id !== user._id;
-                                        })
-                                        .map(user => (
-                                            <option key={user._id} value={user._id}>
-                                                {user.name} ({user.role})
-                                            </option>
-                                        ))}
-                                </select>
-                                {formData.assignedTo.length > 0 && (
-                                    <p className="mt-1 text-xs text-gray-600">
-                                        🎯 Task will be assigned to {formData.assignedTo.length} team member(s)
-                                    </p>
-                                )}
-                                {formData.assignedTo.length === 0 && (
-                                    <p className="mt-1 text-xs text-red-600">
-                                        ⚠️ Please select at least one assignee
-                                    </p>
-                                )}
+                                            })
+                                            .map(user => (
+                                                <option key={user._id} value={user._id} className="py-2">
+                                                    {user.name} ({user.role})
+                                                </option>
+                                            ))}
+                                    </select>
+                                    {formData.assignedTo.length > 0 && (
+                                        <div className="mt-3 flex items-center p-3 bg-green-50 border border-green-200 rounded-lg">
+                                            <CheckCircle2 className="h-4 w-4 text-green-500 mr-2" />
+                                            <span className="text-sm text-green-700">
+                                                Task will be assigned to {formData.assignedTo.length} team member(s)
+                                            </span>
+                                        </div>
+                                    )}
+                                    {formData.assignedTo.length === 0 && (
+                                        <div className="mt-3 flex items-center p-3 bg-amber-50 border border-amber-200 rounded-lg">
+                                            <AlertCircle className="h-4 w-4 text-amber-500 mr-2" />
+                                            <span className="text-sm text-amber-700">
+                                                Please select at least one assignee
+                                            </span>
+                                        </div>
+                                    )}
+                                </div>
                             </div>
 
-                            <div className="grid grid-cols-2 gap-4">
-                                <div>
-                                    <label className="block text-sm font-medium text-gray-700">
+                            {/* Category and Time Estimates */}
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                                <div className="space-y-2">
+                                    <label className="flex items-center text-sm font-semibold text-gray-900">
+                                        <Target className="h-4 w-4 mr-2 text-blue-600" />
                                         Category
                                     </label>
                                     <input
@@ -340,14 +385,15 @@ const TaskModal = ({ task, onClose, allTasks }) => {
                                         name="category"
                                         value={formData.category}
                                         onChange={handleChange}
-                                        className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
-                                />
-                            </div>
+                                        placeholder="e.g., Development, Design"
+                                        className="block w-full px-4 py-3 border border-gray-200 rounded-xl shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all placeholder-gray-400"
+                                    />
+                                </div>
 
-                            <div className="grid grid-cols-2 gap-4">
-                                <div>
-                                    <label className="block text-sm font-medium text-gray-700">
-                                        Est. Hours <span className="text-red-500">*</span>
+                                <div className="space-y-2">
+                                    <label className="flex items-center text-sm font-semibold text-gray-900">
+                                        <Clock className="h-4 w-4 mr-2 text-blue-600" />
+                                        Est. Hours <span className="text-red-500 ml-1">*</span>
                                     </label>
                                     <input
                                         type="number"
@@ -356,35 +402,40 @@ const TaskModal = ({ task, onClose, allTasks }) => {
                                         min="1"
                                         value={formData.estimatedHours}
                                         onChange={handleChange}
-                                        className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
-                                    />
-                                </div>
-
-                                <div>
-                                    <label className="block text-sm font-medium text-gray-700">
-                                        Manual Due Date
-                                    </label>
-                                    <input
-                                        type="date"
-                                        name="manualDueDate"
-                                        value={formData.manualDueDate}
-                                        onChange={handleChange}
-                                        className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                                        placeholder="Hours"
+                                        className="block w-full px-4 py-3 border border-gray-200 rounded-xl shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all placeholder-gray-400"
                                     />
                                 </div>
                             </div>
 
-                            <div>
-                                <label className="block text-sm font-medium text-gray-700">
+                            {/* Due Date */}
+                            <div className="space-y-2">
+                                <label className="flex items-center text-sm font-semibold text-gray-900">
+                                    <Calendar className="h-4 w-4 mr-2 text-blue-600" />
+                                    Due Date
+                                </label>
+                                <input
+                                    type="date"
+                                    name="manualDueDate"
+                                    value={formData.manualDueDate}
+                                    onChange={handleChange}
+                                    className="block w-full px-4 py-3 border border-gray-200 rounded-xl shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
+                                />
+                            </div>
+
+                            {/* Attachment Links */}
+                            <div className="space-y-3">
+                                <label className="flex items-center text-sm font-semibold text-gray-900">
+                                    <Link2 className="h-4 w-4 mr-2 text-blue-600" />
                                     Attachment Links
                                 </label>
-                                <div className="mt-1">
-                                    <div className="flex space-x-2">
+                                <div className="space-y-3">
+                                    <div className="flex space-x-3">
                                         <input
                                             type="url"
                                             id="attachment-link"
                                             placeholder="https://example.com/document.pdf"
-                                            className="flex-1 px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                                            className="flex-1 px-4 py-3 border border-gray-200 rounded-xl shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all placeholder-gray-400"
                                             onKeyPress={(e) => {
                                                 if (e.key === 'Enter') {
                                                     e.preventDefault();
@@ -395,32 +446,30 @@ const TaskModal = ({ task, onClose, allTasks }) => {
                                         <button
                                             type="button"
                                             onClick={handleLinkAdd}
-                                            className="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                                            className="px-6 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-medium rounded-xl hover:from-blue-700 hover:to-indigo-700 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all shadow-lg"
                                         >
                                             Add Link
                                         </button>
                                     </div>
-                                    <p className="mt-1 text-xs text-gray-500">
+                                    <p className="text-xs text-gray-500">
                                         Add links to external documents (Google Drive, Dropbox, etc.)
                                     </p>
                                     
                                     {formData.attachmentLinks.length > 0 && (
-                                        <div className="mt-3">
-                                            <p className="text-sm text-gray-600 mb-2">
+                                        <div className="space-y-2">
+                                            <p className="text-sm font-medium text-gray-700">
                                                 Added Links ({formData.attachmentLinks.length}):
                                             </p>
                                             <ul className="space-y-2">
                                                 {formData.attachmentLinks.map((link, index) => (
-                                                    <li key={index} className="flex items-center justify-between p-2 bg-gray-50 rounded">
+                                                    <li key={index} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg border border-gray-200">
                                                         <div className="flex items-center flex-1 min-w-0">
-                                                            <svg className="h-4 w-4 text-blue-500 mr-2 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
-                                                            </svg>
+                                                            <Link2 className="h-4 w-4 text-blue-500 mr-3 flex-shrink-0" />
                                                             <a 
                                                                 href={sanitizeUrl(link)} 
                                                                 target="_blank" 
                                                                 rel="noopener noreferrer nofollow"
-                                                                className="text-sm text-blue-600 hover:text-blue-800 truncate"
+                                                                className="text-sm text-blue-600 hover:text-blue-800 truncate font-medium"
                                                                 title={link}
                                                             >
                                                                 {link}
@@ -429,11 +478,9 @@ const TaskModal = ({ task, onClose, allTasks }) => {
                                                         <button
                                                             type="button"
                                                             onClick={() => handleLinkRemove(index)}
-                                                            className="ml-2 text-red-500 hover:text-red-700"
+                                                            className="ml-3 p-2 text-red-500 hover:text-red-700 hover:bg-red-50 rounded-lg transition-colors"
                                                         >
-                                                            <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                                                            </svg>
+                                                            <X className="h-4 w-4" />
                                                         </button>
                                                     </li>
                                                 ))}
@@ -443,28 +490,39 @@ const TaskModal = ({ task, onClose, allTasks }) => {
                                 </div>
                             </div>
 
-                            <div className="mt-5 sm:mt-6 sm:flex sm:flex-row-reverse">
+                            {/* Action Buttons */}
+                            <div className="flex flex-col sm:flex-row gap-3 pt-6 border-t border-gray-200">
                                 <button
                                     type="submit"
                                     disabled={loading}
-                                    className="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-blue-600 text-base font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 sm:ml-3 sm:w-auto sm:text-sm disabled:opacity-50"
+                                    className="flex-1 px-6 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-semibold rounded-xl hover:from-blue-700 hover:to-indigo-700 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
                                 >
-                                    {loading ? 'Saving...' : 'Save Task'}
+                                    {loading ? (
+                                        <span className="flex items-center justify-center">
+                                            <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                            </svg>
+                                            Saving...
+                                        </span>
+                                    ) : (
+                                        <span className="flex items-center justify-center">
+                                            {task ? '✏️ Update Task' : '🚀 Create Task'}
+                                        </span>
+                                    )}
                                 </button>
 
                                 <button
                                     type="button"
                                     onClick={onClose}
-                                    className="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none sm:mt-0 sm:ml-3 sm:w-auto sm:text-sm"
+                                    className="flex-1 px-6 py-3 bg-white border-2 border-gray-300 text-gray-700 font-semibold rounded-xl hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-gray-500 transition-all"
                                 >
                                     Cancel
                                 </button>
                             </div>
-                        </div>
                         </form>
                     </div>
                 </div>
-
             </div>
         </div>
     );
