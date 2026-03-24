@@ -95,15 +95,22 @@ const UnifiedDashboard = () => {
 
     const fetchDashboardData = async () => {
         try {
+            console.log('🔄 Starting fetchDashboardData...');
+            console.log('👤 Current user:', user);
+            console.log('👤 User role:', user?.role);
+            
             // Fetch team analytics
             const teamResponse = await api.get('/analytics/dashboard');
+            console.log('📊 Team analytics response:', teamResponse.data);
             setTeamStats(teamResponse.data);
 
             // Fetch all tasks for team member tracking (Admin/PM only)
             let userTasks = [];
             if (user?.role === 'Admin' || user?.role === 'Project Manager') {
+                console.log('👤 User is Admin/PM, fetching all tasks...');
                 const allTasksResponse = await api.get('/tasks');
                 const allTasks = allTasksResponse.data;
+                console.log('📋 All tasks fetched:', allTasks.length);
 
                 // Filter tasks based on role:
                 // - Admin: See all tasks (current behavior)
@@ -183,6 +190,10 @@ const UnifiedDashboard = () => {
                     completionRate: member.totalTasks > 0 ? (member.completedTasks / member.totalTasks * 100) : 0
                 }));
 
+                // Set team member tasks state for Admin/PM views
+                setTeamMemberTasks(teamMembersData);
+                console.log('👥 Team member tasks set:', teamMembersData.length);
+
                 // For PM, sort by assignee name and group tasks by assignment chain
                 // But only show task details for tasks PM created/assigned
                 if (user?.role === 'Project Manager') {
@@ -248,12 +259,25 @@ const UnifiedDashboard = () => {
                     }
                 } else {
                     // Team Member: fetch only their assigned tasks
-                    const myTasksResponse = await api.get('/tasks/my-tasks');
-                    userTasks = myTasksResponse.data;
+                    console.log('👤 User is Team Member, fetching personal tasks...');
+                    const allTasksResponse = await api.get('/tasks');
+                    const allTasks = allTasksResponse.data;
+                    
+                    // Filter tasks assigned to current user
+                    userTasks = allTasks.filter(task =>
+                        task.assignedTo && (
+                            (Array.isArray(task.assignedTo) && task.assignedTo.some(assignee => assignee._id === user._id)) ||
+                            (task.assignedTo._id === user._id)
+                        )
+                    );
+                    console.log('📋 Personal tasks fetched:', userTasks.length);
+                    
+                    // Set empty team member tasks for team members
+                    setTeamMemberTasks([]);
                 }
 
                 setMyTasks(userTasks);
-
+                console.log('📊 My tasks set:', userTasks.length);
 
                 // Calculate personal statistics
                 const now = new Date();
@@ -266,6 +290,8 @@ const UnifiedDashboard = () => {
                     t.status !== 'Completed'
                 ).length;
 
+                console.log('📈 Personal stats calculated:', { completed, inProgress, todo, overdue });
+
                 const completionRate = userTasks.length > 0 ? (completed / userTasks.length * 100) : 0;
 
                 setPersonalStats({
@@ -276,6 +302,7 @@ const UnifiedDashboard = () => {
                     overdue,
                     completionRate
                 });
+                console.log('✅ Personal stats set:', { total: userTasks.length, completed, inProgress, todo, overdue, completionRate });
 
                 setLastUpdated(new Date());
 

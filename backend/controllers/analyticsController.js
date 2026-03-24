@@ -10,9 +10,11 @@ const getDashboardStats = async (req, res) => {
         
         const totalTasks = await Task.countDocuments();
         const completedTasks = await Task.countDocuments({ status: 'Completed' });
+        const inProgressTasks = await Task.countDocuments({ status: 'In Progress' });
+        const todoTasks = await Task.countDocuments({ status: 'To Do' });
         const blockedTasks = await Task.countDocuments({ status: 'Blocked' });
 
-        console.log('Task counts:', { totalTasks, completedTasks, blockedTasks });
+        console.log('Task counts:', { totalTasks, completedTasks, inProgressTasks, todoTasks, blockedTasks });
 
         // Bottlenecks: Tasks that are blocked, or tasks that have many dependents
         const bottlenecks = await Task.find({ status: 'Blocked' }).populate('assignedTo', 'name');
@@ -42,6 +44,8 @@ const getDashboardStats = async (req, res) => {
             completionRate: totalTasks === 0 ? 0 : (completedTasks / totalTasks) * 100,
             totalTasks,
             completedTasks,
+            inProgressTasks,
+            todoTasks,
             blockedTasks,
             bottlenecks,
             overdueTasks,

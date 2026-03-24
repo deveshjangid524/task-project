@@ -35,12 +35,20 @@ const TaskModal = ({ task, onClose, allTasks }) => {
         category: task?.category || '',
         priority: task?.priority || 'Medium',
         status: task?.status || 'To Do',
-        assignedTo: task?.assignedTo ? (Array.isArray(task.assignedTo) ? task.assignedTo : [task.assignedTo._id]) : [],
+        assignedTo: task?.assignedTo ? 
+            (Array.isArray(task.assignedTo) 
+                ? task.assignedTo.map(assignee => 
+                    typeof assignee === 'string' ? assignee : assignee._id
+                  )
+                : (typeof task.assignedTo === 'string' 
+                    ? [task.assignedTo] 
+                    : [task.assignedTo._id])
+            ) : [],
         estimatedHours: task?.timeEstimates?.estimatedHours || 1,
         manualDueDate: task?.scheduling?.manualDueDate
             ? new Date(task.scheduling.manualDueDate).toISOString().split('T')[0]
             : '',
-        attachmentLinks: []
+        attachmentLinks: task?.attachmentLinks || []
     });
 
     const [users, setUsers] = useState([]);
@@ -65,6 +73,90 @@ const TaskModal = ({ task, onClose, allTasks }) => {
         fetchUsers();
     }, []);
 
+    // Update formData when task prop changes (for editing different tasks)
+    useEffect(() => {
+        if (task) {
+            setFormData({
+                title: task.title || '',
+                description: task.description || '',
+                category: task.category || '',
+                priority: task.priority || 'Medium',
+                status: task.status || 'To Do',
+                assignedTo: task.assignedTo ? 
+                    (Array.isArray(task.assignedTo) 
+                        ? task.assignedTo.map(assignee => 
+                            typeof assignee === 'string' ? assignee : assignee._id
+                          )
+                        : (typeof task.assignedTo === 'string' 
+                            ? [task.assignedTo] 
+                            : [task.assignedTo._id])
+                    ) : [],
+                estimatedHours: task?.timeEstimates?.estimatedHours || 1,
+                manualDueDate: task?.scheduling?.manualDueDate
+                    ? new Date(task.scheduling.manualDueDate).toISOString().split('T')[0]
+                    : '',
+                attachmentLinks: task?.attachmentLinks || []
+            });
+        } else {
+            // Reset form for new task
+            setFormData({
+                title: '',
+                description: '',
+                category: '',
+                priority: 'Medium',
+                status: 'To Do',
+                assignedTo: [],
+                estimatedHours: 1,
+                manualDueDate: '',
+                attachmentLinks: []
+            });
+        }
+        // Reset search and dropdown when task changes
+        setSearchTerm('');
+        setIsDropdownOpen(false);
+    }, [task]);
+
+    // Filter users based on search term
+    useEffect(() => {
+        const availableUsers = users.filter(u => {
+            // For PMs: show all team members except themselves
+            if (user?.role === 'Project Manager') {
+                return u.role === 'Team Member' && u._id !== user._id;
+            }
+            // For Admins: show all users except themselves
+            if (user?.role === 'Admin') {
+                return u._id !== user._id;
+            }
+            // For Team Members: show other team members
+            return u.role === 'Team Member' && u._id !== user._id;
+        });
+
+        if (searchTerm) {
+            const filtered = availableUsers.filter(u => 
+                u.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                u.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                u.role.toLowerCase().includes(searchTerm.toLowerCase())
+            );
+            setFilteredUsers(filtered);
+        } else {
+            setFilteredUsers(availableUsers);
+        }
+    }, [searchTerm, users, user]);
+
+    // Close dropdown when clicking outside
+    useEffect(() => {
+        const handleClickOutside = (event) => {
+            if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+                setIsDropdownOpen(false);
+            }
+        };
+
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => {
+            document.removeEventListener('mousedown', handleClickOutside);
+        };
+    }, []);
+
     const handleChange = (e) => {
         const value =
             e.target.type === 'select-multiple'
@@ -72,6 +164,43 @@ const TaskModal = ({ task, onClose, allTasks }) => {
                 : e.target.value;
 
         setFormData({ ...formData, [e.target.name]: value });
+    };
+
+    // Handle user selection in dropdown
+    const handleUserSelect = (userId) => {
+        if (!formData.assignedTo.includes(userId)) {
+            setFormData({ 
+                ...formData, 
+                assignedTo: [...formData.assignedTo, userId] 
+            });
+        }
+        setSearchTerm('');
+        setIsDropdownOpen(false);
+    };
+
+    // Handle user removal from selected list
+    const handleUserRemove = (userId) => {
+        setFormData({ 
+            ...formData, 
+            assignedTo: formData.assignedTo.filter(id => id !== userId) 
+        });
+    };
+
+    // Get selected user details
+    const getSelectedUsers = () => {
+        return formData.assignedTo.map(userId => 
+            users.find(u => u._id === userId)
+        ).filter(Boolean);
+    };
+
+    // Get role color for styling
+    const getRoleColor = (role) => {
+        switch(role) {
+            case 'Admin': return 'bg-purple-100 text-purple-700 border-purple-200';
+            case 'Project Manager': return 'bg-blue-100 text-blue-700 border-blue-200';
+            case 'Team Member': return 'bg-green-100 text-green-700 border-green-200';
+            default: return 'bg-gray-100 text-gray-700 border-gray-200';
+        }
     };
 
     const handleLinkAdd = () => {
@@ -313,64 +442,136 @@ const TaskModal = ({ task, onClose, allTasks }) => {
                                 </div>
                             </div>
 
-                            {/* Assignees Section */}
-                            <div className="space-y-2">
+                            {/* Advanced Assignees Section */}
+                            <div className="space-y-3">
                                 <label className="flex items-center text-sm font-semibold text-gray-900">
                                     <Users className="h-4 w-4 mr-2 text-blue-600" />
                                     Assignees <span className="text-red-500 ml-1">*</span>
-                                    <span className="ml-2 text-xs font-normal text-gray-500">(Select multiple team members)</span>
+                                    <span className="ml-2 text-xs font-normal text-gray-500">(Search and select team members)</span>
                                 </label>
-                                <div className="relative">
-                                    <select
-                                        multiple
-                                        name="assignedTo"
-                                        value={formData.assignedTo}
-                                        onChange={handleChange}
-                                        className="block w-full px-4 py-3 border border-gray-200 rounded-xl shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all h-32 appearance-none cursor-pointer"
-                                        size="4"
-                                        required
-                                    >
-                                        <option value="" disabled className="text-gray-400">
-                                            {formData.assignedTo.length === 0 
-                                                ? '👥 Select assignees...' 
-                                                : `🎯 ${formData.assignedTo.length} member(s) selected`}
-                                        </option>
-                                        {users
-                                            .filter(u => {
-                                                // For PMs: show all team members except themselves
-                                                if (user?.role === 'Project Manager') {
-                                                    return u.role === 'Team Member' && u._id !== user._id;
-                                                }
-                                                // For Admins: show all users except themselves
-                                                if (user?.role === 'Admin') {
-                                                    return u._id !== user._id;
-                                                }
-                                                // For Team Members: show other team members
-                                                return u.role === 'Team Member' && u._id !== user._id;
-                                            })
-                                            .map(user => (
-                                                <option key={user._id} value={user._id} className="py-2">
-                                                    {user.name} ({user.role})
-                                                </option>
+                                
+                                <div ref={dropdownRef} className="relative">
+                                    {/* Search Input */}
+                                    <div className="relative">
+                                        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                            <Search className="h-4 w-4 text-gray-400" />
+                                        </div>
+                                        <input
+                                            type="text"
+                                            value={searchTerm}
+                                            onChange={(e) => {
+                                                setSearchTerm(e.target.value);
+                                                setIsDropdownOpen(true);
+                                            }}
+                                            onFocus={() => setIsDropdownOpen(true)}
+                                            placeholder="Search team members by name, email, or role..."
+                                            className="block w-full pl-10 pr-10 py-3 border border-gray-200 rounded-xl shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all placeholder-gray-400"
+                                        />
+                                        <div className="absolute inset-y-0 right-0 pr-3 flex items-center">
+                                            <ChevronDown className={`h-4 w-4 text-gray-400 transition-transform ${isDropdownOpen ? 'rotate-180' : ''}`} />
+                                        </div>
+                                    </div>
+
+                                    {/* Selected Users Display */}
+                                    {getSelectedUsers().length > 0 && (
+                                        <div className="mt-3 flex flex-wrap gap-2">
+                                            {getSelectedUsers().map(selectedUser => (
+                                                <div 
+                                                    key={selectedUser._id}
+                                                    className="inline-flex items-center space-x-2 px-3 py-2 bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-full"
+                                                >
+                                                    <img
+                                                        className="h-6 w-6 rounded-full border-2 border-white shadow-sm"
+                                                        src={`https://ui-avatars.com/api/?name=${selectedUser.name}&background=6366f1&color=fff&size=24`}
+                                                        alt={selectedUser.name}
+                                                    />
+                                                    <span className="text-sm font-medium text-gray-700">{selectedUser.name}</span>
+                                                    <span className={`text-xs px-2 py-1 rounded-full border ${getRoleColor(selectedUser.role)}`}>
+                                                        {selectedUser.role}
+                                                    </span>
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => handleUserRemove(selectedUser._id)}
+                                                        className="p-1 text-red-500 hover:text-red-700 hover:bg-red-50 rounded-full transition-colors"
+                                                    >
+                                                        <X className="h-3 w-3" />
+                                                    </button>
+                                                </div>
                                             ))}
-                                    </select>
-                                    {formData.assignedTo.length > 0 && (
-                                        <div className="mt-3 flex items-center p-3 bg-green-50 border border-green-200 rounded-lg">
-                                            <CheckCircle2 className="h-4 w-4 text-green-500 mr-2" />
-                                            <span className="text-sm text-green-700">
-                                                Task will be assigned to {formData.assignedTo.length} team member(s)
-                                            </span>
                                         </div>
                                     )}
-                                    {formData.assignedTo.length === 0 && (
-                                        <div className="mt-3 flex items-center p-3 bg-amber-50 border border-amber-200 rounded-lg">
-                                            <AlertCircle className="h-4 w-4 text-amber-500 mr-2" />
-                                            <span className="text-sm text-amber-700">
-                                                Please select at least one assignee
-                                            </span>
+
+                                    {/* Dropdown Results */}
+                                    {isDropdownOpen && (
+                                        <div className="absolute z-10 w-full mt-1 bg-white border border-gray-200 rounded-xl shadow-lg max-h-64 overflow-hidden">
+                                            {filteredUsers.length > 0 ? (
+                                                <div className="py-2">
+                                                    {filteredUsers.map(filteredUser => (
+                                                        <button
+                                                            key={filteredUser._id}
+                                                            type="button"
+                                                            onClick={() => handleUserSelect(filteredUser._id)}
+                                                            disabled={formData.assignedTo.includes(filteredUser._id)}
+                                                            className={`w-full px-4 py-3 flex items-center space-x-3 hover:bg-gray-50 transition-colors ${
+                                                                formData.assignedTo.includes(filteredUser._id) 
+                                                                    ? 'opacity-50 cursor-not-allowed bg-gray-50' 
+                                                                    : ''
+                                                            }`}
+                                                        >
+                                                            <img
+                                                                className="h-8 w-8 rounded-full border-2 border-gray-200"
+                                                                src={`https://ui-avatars.com/api/?name=${filteredUser.name}&background=random&size=32`}
+                                                                alt={filteredUser.name}
+                                                            />
+                                                            <div className="flex-1 text-left">
+                                                                <div className="flex items-center space-x-2">
+                                                                    <span className="text-sm font-medium text-gray-900">
+                                                                        {filteredUser.name}
+                                                                    </span>
+                                                                    <span className={`text-xs px-2 py-1 rounded-full border ${getRoleColor(filteredUser.role)}`}>
+                                                                        {filteredUser.role}
+                                                                    </span>
+                                                                </div>
+                                                                <span className="text-xs text-gray-500">{filteredUser.email}</span>
+                                                            </div>
+                                                            {formData.assignedTo.includes(filteredUser._id) && (
+                                                                <CheckCircle2 className="h-4 w-4 text-green-500" />
+                                                            )}
+                                                            {!formData.assignedTo.includes(filteredUser._id) && (
+                                                                <UserPlus className="h-4 w-4 text-gray-400" />
+                                                            )}
+                                                        </button>
+                                                    ))}
+                                                </div>
+                                            ) : (
+                                                <div className="px-4 py-8 text-center">
+                                                    <User className="h-8 w-8 text-gray-300 mx-auto mb-2" />
+                                                    <p className="text-sm text-gray-500">
+                                                        {searchTerm ? 'No users found matching your search' : 'No available users'}
+                                                    </p>
+                                                </div>
+                                            )}
                                         </div>
                                     )}
                                 </div>
+
+                                {/* Status Messages */}
+                                {getSelectedUsers().length > 0 && (
+                                    <div className="flex items-center p-3 bg-green-50 border border-green-200 rounded-lg">
+                                        <CheckCircle2 className="h-4 w-4 text-green-500 mr-2" />
+                                        <span className="text-sm text-green-700">
+                                            Task will be assigned to {getSelectedUsers().length} team member(s)
+                                        </span>
+                                    </div>
+                                )}
+                                {getSelectedUsers().length === 0 && (
+                                    <div className="flex items-center p-3 bg-amber-50 border border-amber-200 rounded-lg">
+                                        <AlertCircle className="h-4 w-4 text-amber-500 mr-2" />
+                                        <span className="text-sm text-amber-700">
+                                            Please select at least one assignee
+                                        </span>
+                                    </div>
+                                )}
                             </div>
 
                             {/* Category and Time Estimates */}
