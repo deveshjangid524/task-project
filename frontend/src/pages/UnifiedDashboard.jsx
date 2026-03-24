@@ -24,7 +24,7 @@ import {
     History
 } from 'lucide-react';
 
-const COLORS = ['#10b981', '#3b82f6', '#f59e0b', '#ef4444', '#8b5cf6'];
+const COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#06b6d4', '#84cc16'];
 
 const UnifiedDashboard = () => {
     const { user } = useAuth();
@@ -111,22 +111,20 @@ const UnifiedDashboard = () => {
                 const allTasksResponse = await api.get('/tasks');
                 const allTasks = allTasksResponse.data;
                 console.log('📋 All tasks fetched:', allTasks.length);
+                
+                // Debug: Check first few tasks for createdBy field
+                console.log('🔍 Sample task structures:', allTasks.slice(0, 3).map(t => ({
+                    title: t.title,
+                    createdBy: t.createdBy,
+                    assignedTo: t.assignedTo
+                })));
 
                 // Filter tasks based on role:
-                // - Admin: See all tasks (current behavior)
-                // - Project Manager: Only see tasks they created (not just assigned tasks)
-                const filteredTasks = user?.role === 'Project Manager'
-                    ? allTasks.filter(task => {
-                        // PM sees any task they created, regardless of who it's assigned to
-                        const pmCreated = task.createdBy && (
-                            (typeof task.createdBy === 'string' && task.createdBy === user._id) ||
-                            (task.createdBy._id && task.createdBy._id.toString() === user._id) ||
-                            (task.createdBy === user._id)
-                        );
-
-                        return pmCreated;
-                    })
-                    : allTasks; // Admin sees all tasks
+                // - Admin: See all tasks
+                // - Project Manager: See all tasks (they need to manage the team)
+                const filteredTasks = user?.role === 'Project Manager' || user?.role === 'Admin'
+                    ? allTasks // Both Admin and PM see all tasks
+                    : allTasks; // This line won't be reached but kept for safety
 
                 // Group tasks by team member
                 const tasksByMember = {};
@@ -233,21 +231,10 @@ const UnifiedDashboard = () => {
 
                     // Filter tasks for current user based on role
                     let userTasks;
-                    if (user?.role === 'Project Manager') {
-                        // PM sees: tasks they created (not just assigned tasks)
-                        userTasks = allTasks.filter(task => {
-                            // PM sees any task they created, regardless of who it's assigned to
-                            const pmCreated = task.createdBy && (
-                                (typeof task.createdBy === 'string' && task.createdBy === user._id) ||
-                                (task.createdBy._id && task.createdBy._id.toString() === user._id) ||
-                                (task.createdBy === user._id)
-                            );
-
-                            return pmCreated;
-                        });
-                    } else if (user?.role === 'Admin') {
-                        // Admin sees all tasks
+                    if (user?.role === 'Project Manager' || user?.role === 'Admin') {
+                        // Both Admin and PM see all tasks for management purposes
                         userTasks = allTasks;
+                        console.log('👑 Admin/PM sees all tasks:', userTasks.length);
                     } else {
                         // Team Member sees only tasks assigned to them (handle multi-assignee)
                         userTasks = allTasks.filter(task =>
@@ -631,16 +618,17 @@ const UnifiedDashboard = () => {
 
     return (
 
-        <div className="py-6 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto">
+        <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-blue-50/30 py-6 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto">
             {/* Header */}
             <div className="mb-8">
                 <div className="flex items-center justify-between">
                     <div>
-                        <h1 className="text-3xl font-bold text-gray-900">Dashboard</h1>
-                        <p className="mt-2 text-gray-600">
-                            Welcome back, {user?.name}! Here's your complete overview.
+                        <h1 className="text-4xl font-bold bg-gradient-to-r from-gray-900 via-blue-800 to-purple-800 bg-clip-text text-transparent">Dashboard</h1>
+                        <p className="mt-3 text-lg text-gray-600 font-medium">
+                            Welcome back, <span className="text-blue-600">{user?.name}</span>! Here's your complete overview.
                         </p>
-                        <p className="text-xs text-gray-500 mt-1">
+                        <p className="text-sm text-gray-500 mt-2 flex items-center">
+                            <Clock className="h-4 w-4 mr-1" />
                             Last updated: {lastUpdated.toLocaleTimeString()}
                         </p>
                     </div>
@@ -648,7 +636,7 @@ const UnifiedDashboard = () => {
                         <button
                             onClick={handleManualRefresh}
                             disabled={refreshing}
-                            className="inline-flex items-center px-3 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50"
+                            className="inline-flex items-center px-4 py-2.5 border border-gray-200 shadow-lg text-sm font-semibold rounded-xl text-gray-700 bg-white/80 backdrop-blur-sm hover:bg-white hover:shadow-xl hover:scale-105 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200"
                         >
                             <RefreshCw className={`-ml-1 mr-2 h-4 w-4 ${refreshing ? 'animate-spin' : ''}`} />
                             {refreshing ? 'Refreshing...' : 'Refresh'}
@@ -657,13 +645,13 @@ const UnifiedDashboard = () => {
                             <button
                                 onClick={handleScheduleTasks}
                                 disabled={aiOptimizing}
-                                className={`inline-flex items-center justify-center w-10 h-10 rounded-full shadow-lg focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 ${aiOptimizing
+                                className={`inline-flex items-center justify-center w-12 h-12 rounded-2xl shadow-lg focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-all duration-200 ${aiOptimizing
                                         ? 'bg-gray-400 cursor-not-allowed'
-                                        : 'bg-blue-600 hover:bg-blue-700'
+                                        : 'bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 hover:scale-110 hover:shadow-xl'
                                     }`}
                                 title="AI Optimize Schedule"
                             >
-                                <Activity className="h-5 w-5 text-white" />
+                                <Activity className="h-6 w-6 text-white" />
                             </button>
                         )}
                     </div>
@@ -671,49 +659,49 @@ const UnifiedDashboard = () => {
             </div>
 
             {/* View Toggle */}
-            <div className="mb-6 border-b border-gray-200">
-                <nav className="-mb-px flex space-x-8">
+            <div className="mb-8 bg-white/60 backdrop-blur-sm rounded-2xl shadow-lg border border-white/20 p-2">
+                <nav className="flex space-x-1">
                     <button
                         onClick={() => setActiveView('overview')}
-                        className={`py-2 px-1 border-b-2 font-medium text-sm ${activeView === 'overview'
-                                ? 'border-blue-500 text-blue-600'
-                                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                        className={`flex-1 flex items-center justify-center py-3 px-4 rounded-xl font-semibold text-sm transition-all duration-200 ${activeView === 'overview'
+                                ? 'bg-gradient-to-r from-blue-600 to-purple-600 text-white shadow-lg scale-105'
+                                : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
                             }`}
                     >
-                        <BarChart3 className="h-4 w-4 inline mr-2" />
+                        <BarChart3 className="h-4 w-4 mr-2" />
                         Overview
                     </button>
                     <button
                         onClick={() => setActiveView('personal')}
-                        className={`py-2 px-1 border-b-2 font-medium text-sm ${activeView === 'personal'
-                                ? 'border-blue-500 text-blue-600'
-                                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                        className={`flex-1 flex items-center justify-center py-3 px-4 rounded-xl font-semibold text-sm transition-all duration-200 ${activeView === 'personal'
+                                ? 'bg-gradient-to-r from-blue-600 to-purple-600 text-white shadow-lg scale-105'
+                                : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
                             }`}
                     >
-                        <User className="h-4 w-4 inline mr-2" />
+                        <User className="h-4 w-4 mr-2" />
                         My Tasks
                     </button>
                     {(user?.role === 'Admin' || user?.role === 'Project Manager') && (
                         <button
                             onClick={() => setActiveView('team')}
-                            className={`py-2 px-1 border-b-2 font-medium text-sm ${activeView === 'team'
-                                    ? 'border-blue-500 text-blue-600'
-                                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                            className={`flex-1 flex items-center justify-center py-3 px-4 rounded-xl font-semibold text-sm transition-all duration-200 ${activeView === 'team'
+                                    ? 'bg-gradient-to-r from-blue-600 to-purple-600 text-white shadow-lg scale-105'
+                                    : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
                                 }`}
                         >
-                            <Users className="h-4 w-4 inline mr-2" />
+                            <Users className="h-4 w-4 mr-2" />
                             Team Analytics
                         </button>
                     )}
                     {(user?.role === 'Admin' || user?.role === 'Project Manager') && (
                         <button
                             onClick={() => setActiveView('team-members')}
-                            className={`py-2 px-1 border-b-2 font-medium text-sm ${activeView === 'team-members'
-                                    ? 'border-blue-500 text-blue-600'
-                                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                            className={`flex-1 flex items-center justify-center py-3 px-4 rounded-xl font-semibold text-sm transition-all duration-200 ${activeView === 'team-members'
+                                    ? 'bg-gradient-to-r from-blue-600 to-purple-600 text-white shadow-lg scale-105'
+                                    : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
                                 }`}
                         >
-                            <User className="h-4 w-4 inline mr-2" />
+                            <User className="h-4 w-4 mr-2" />
                             Team Members
                         </button>
                     )}
@@ -725,24 +713,29 @@ const UnifiedDashboard = () => {
                 <div>
                     {/* Alerts */}
                     {(personalStats.overdue > 0 || teamStats.overdueTasks.length > 0) && (
-                        <div className="mb-6 bg-red-50 border border-red-200 rounded-md p-4">
+                        <div className="mb-8 bg-gradient-to-r from-red-50 to-orange-50 border border-red-200/50 rounded-2xl p-6 shadow-lg backdrop-blur-sm">
                             <div className="flex items-center justify-between">
                                 <div className="flex">
-                                    <AlertTriangle className="h-5 w-5 text-red-400" />
-                                    <div className="ml-3">
-                                        <h3 className="text-sm font-medium text-red-800">
+                                    <div className="flex-shrink-0">
+                                        <div className="w-12 h-12 bg-gradient-to-br from-red-500 to-orange-600 rounded-xl flex items-center justify-center shadow-lg">
+                                            <AlertTriangle className="h-6 w-6 text-white" />
+                                        </div>
+                                    </div>
+                                    <div className="ml-4">
+                                        <h3 className="text-lg font-semibold text-red-900">
                                             {personalStats.overdue > 0 && (
-                                                <>You have {personalStats.overdue} overdue task{personalStats.overdue > 1 ? 's' : ''}. </>
+                                                <>You have <span className="text-red-600 font-bold">{personalStats.overdue}</span> overdue task{personalStats.overdue > 1 ? 's' : ''}. </>
                                             )}
                                             {teamStats.overdueTasks.length > 0 && user?.role !== 'Team Member' && (
-                                                <>Team has {teamStats.overdueTasks.length} overdue task{teamStats.overdueTasks.length > 1 ? 's' : ''}.</>
+                                                <>Team has <span className="text-red-600 font-bold">{teamStats.overdueTasks.length}</span> overdue task{teamStats.overdueTasks.length > 1 ? 's' : ''}.</>
                                             )}
                                         </h3>
+                                        <p className="text-sm text-red-700 mt-1">Immediate attention required</p>
                                     </div>
                                 </div>
                                 <button
                                     onClick={() => setShowOverdueDetails(true)}
-                                    className="ml-4 inline-flex items-center px-3 py-1 border border-red-300 shadow-sm text-xs font-medium rounded-md text-red-700 bg-red-100 hover:bg-red-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
+                                    className="inline-flex items-center px-4 py-2 border border-red-300 shadow-md text-sm font-semibold rounded-xl text-red-700 bg-white/80 backdrop-blur-sm hover:bg-red-50 hover:shadow-lg hover:scale-105 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 transition-all duration-200"
                                 >
                                     View Details
                                 </button>
@@ -751,53 +744,61 @@ const UnifiedDashboard = () => {
                     )}
 
                     {/* Combined Stats Cards */}
-                    <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4 mb-8">
-                        <div className="bg-white pt-5 px-4 pb-12 sm:pt-6 sm:px-6 shadow rounded-lg overflow-hidden border border-gray-100">
+                    <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4 mb-8">
+                        <div className="group relative bg-gradient-to-br from-white to-blue-50/30 pt-8 px-6 pb-8 sm:pt-8 sm:px-6 shadow-xl rounded-2xl overflow-hidden border border-blue-100/50 hover:shadow-2xl hover:scale-105 transition-all duration-300">
+                            <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-blue-400/20 to-transparent rounded-full blur-2xl"></div>
                             <dt>
-                                <div className="absolute rounded-md p-3 bg-blue-100">
-                                    <Target className="h-6 w-6 text-blue-500" />
+                                <div className="relative bg-gradient-to-br from-blue-500 to-blue-600 rounded-2xl p-4 shadow-lg">
+                                    <Target className="h-8 w-8 text-white" />
                                 </div>
-                                <p className="ml-16 text-sm font-medium text-gray-500 truncate">My Tasks</p>
+                                <p className="mt-6 text-sm font-semibold text-gray-600 uppercase tracking-wide">My Tasks</p>
                             </dt>
-                            <dd className="ml-16 pb-6 flex items-baseline sm:pb-7">
-                                <p className="text-2xl font-semibold text-gray-900">{personalStats.total}</p>
+                            <dd className="mt-4">
+                                <p className="text-4xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">{personalStats.total}</p>
+                                <p className="text-sm text-gray-500 mt-2">Total assigned</p>
                             </dd>
                         </div>
 
-                        <div className="bg-white pt-5 px-4 pb-12 sm:pt-6 sm:px-6 shadow rounded-lg overflow-hidden border border-gray-100">
+                        <div className="group relative bg-gradient-to-br from-white to-green-50/30 pt-8 px-6 pb-8 sm:pt-8 sm:px-6 shadow-xl rounded-2xl overflow-hidden border border-green-100/50 hover:shadow-2xl hover:scale-105 transition-all duration-300">
+                            <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-green-400/20 to-transparent rounded-full blur-2xl"></div>
                             <dt>
-                                <div className="absolute rounded-md p-3 bg-green-100">
-                                    <CheckCircle className="h-6 w-6 text-green-500" />
+                                <div className="relative bg-gradient-to-br from-green-500 to-green-600 rounded-2xl p-4 shadow-lg">
+                                    <CheckCircle className="h-8 w-8 text-white" />
                                 </div>
-                                <p className="ml-16 text-sm font-medium text-gray-500 truncate">My Completion Rate</p>
+                                <p className="mt-6 text-sm font-semibold text-gray-600 uppercase tracking-wide">My Completion Rate</p>
                             </dt>
-                            <dd className="ml-16 pb-6 flex items-baseline sm:pb-7">
-                                <p className="text-2xl font-semibold text-gray-900">{personalStats.completionRate.toFixed(1)}%</p>
+                            <dd className="mt-4">
+                                <p className="text-4xl font-bold bg-gradient-to-r from-green-600 to-emerald-600 bg-clip-text text-transparent">{personalStats.completionRate.toFixed(1)}%</p>
+                                <p className="text-sm text-gray-500 mt-2">Performance</p>
                             </dd>
                         </div>
 
-                        <div className="bg-white pt-5 px-4 pb-12 sm:pt-6 sm:px-6 shadow rounded-lg overflow-hidden border border-gray-100">
+                        <div className="group relative bg-gradient-to-br from-white to-yellow-50/30 pt-8 px-6 pb-8 sm:pt-8 sm:px-6 shadow-xl rounded-2xl overflow-hidden border border-yellow-100/50 hover:shadow-2xl hover:scale-105 transition-all duration-300">
+                            <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-yellow-400/20 to-transparent rounded-full blur-2xl"></div>
                             <dt>
-                                <div className="absolute rounded-md p-3 bg-yellow-100">
-                                    <Clock className="h-6 w-6 text-yellow-500" />
+                                <div className="relative bg-gradient-to-br from-yellow-500 to-orange-600 rounded-2xl p-4 shadow-lg">
+                                    <Clock className="h-8 w-8 text-white" />
                                 </div>
-                                <p className="ml-16 text-sm font-medium text-gray-500 truncate">In Progress</p>
+                                <p className="mt-6 text-sm font-semibold text-gray-600 uppercase tracking-wide">In Progress</p>
                             </dt>
-                            <dd className="ml-16 pb-6 flex items-baseline sm:pb-7">
-                                <p className="text-2xl font-semibold text-gray-900">{personalStats.inProgress}</p>
+                            <dd className="mt-4">
+                                <p className="text-4xl font-bold bg-gradient-to-r from-yellow-600 to-orange-600 bg-clip-text text-transparent">{personalStats.inProgress}</p>
+                                <p className="text-sm text-gray-500 mt-2">Active tasks</p>
                             </dd>
                         </div>
 
                         {(user?.role === 'Admin' || user?.role === 'Project Manager') && (
-                            <div className="bg-white pt-5 px-4 pb-12 sm:pt-6 sm:px-6 shadow rounded-lg overflow-hidden border border-gray-100">
+                            <div className="group relative bg-gradient-to-br from-white to-purple-50/30 pt-8 px-6 pb-8 sm:pt-8 sm:px-6 shadow-xl rounded-2xl overflow-hidden border border-purple-100/50 hover:shadow-2xl hover:scale-105 transition-all duration-300">
+                                <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-purple-400/20 to-transparent rounded-full blur-2xl"></div>
                                 <dt>
-                                    <div className="absolute rounded-md p-3 bg-purple-100">
-                                        <Activity className="h-6 w-6 text-purple-500" />
+                                    <div className="relative bg-gradient-to-br from-purple-500 to-purple-600 rounded-2xl p-4 shadow-lg">
+                                        <Activity className="h-8 w-8 text-white" />
                                     </div>
-                                    <p className="ml-16 text-sm font-medium text-gray-500 truncate">Team Tasks</p>
+                                    <p className="mt-6 text-sm font-semibold text-gray-600 uppercase tracking-wide">Team Tasks</p>
                                 </dt>
-                                <dd className="ml-16 pb-6 flex items-baseline sm:pb-7">
-                                    <p className="text-2xl font-semibold text-gray-900">{teamStats.totalTasks}</p>
+                                <dd className="mt-4">
+                                    <p className="text-4xl font-bold bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent">{teamStats.totalTasks}</p>
+                                    <p className="text-sm text-gray-500 mt-2">Total workload</p>
                                 </dd>
                             </div>
                         )}
@@ -806,27 +807,44 @@ const UnifiedDashboard = () => {
                     {/* Charts Row */}
                     <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
                         {/* Personal Status Breakdown */}
-                        <div className="bg-white p-6 rounded-lg shadow border border-gray-100">
-                            <h3 className="text-lg font-medium text-gray-900 mb-4">My Task Status</h3>
+                        <div className="bg-gradient-to-br from-white to-blue-50/20 p-8 rounded-2xl shadow-xl border border-blue-100/50 hover:shadow-2xl transition-all duration-300">
+                            <div className="flex items-center justify-between mb-6">
+                                <h3 className="text-xl font-bold bg-gradient-to-r from-gray-800 to-blue-800 bg-clip-text text-transparent">My Task Status</h3>
+                                <div className="w-3 h-3 bg-blue-500 rounded-full animate-pulse"></div>
+                            </div>
                             <div className="h-80 w-full">
-                                <ResponsiveContainer width="100%" height={250}>
+                                <ResponsiveContainer width="100%" height={280}>
                                     <PieChart>
                                         <Pie
                                             data={statusData}
                                             cx="50%"
                                             cy="50%"
                                             labelLine={false}
-                                            outerRadius={80}
+                                            outerRadius={90}
                                             fill="#8884d8"
                                             dataKey="value"
                                             label={({ name, percent }) => percent > 0 ? `${name} ${(percent * 100).toFixed(0)}%` : ''}
+                                            animationBegin={0}
+                                            animationDuration={800}
                                         >
                                             {statusData.map((entry, index) => (
                                                 <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                                             ))}
                                         </Pie>
-                                        <RechartsTooltip />
-                                        <Legend />
+                                        <RechartsTooltip 
+                                            contentStyle={{ 
+                                                backgroundColor: 'rgba(255, 255, 255, 0.95)', 
+                                                border: '1px solid #e5e7eb',
+                                                borderRadius: '12px',
+                                                boxShadow: '0 10px 25px rgba(0, 0, 0, 0.1)'
+                                            }}
+                                        />
+                                        <Legend 
+                                            verticalAlign="bottom" 
+                                            height={36}
+                                            iconType="circle"
+                                            wrapperStyle={{ paddingTop: '20px' }}
+                                        />
                                     </PieChart>
                                 </ResponsiveContainer>
                             </div>
@@ -834,22 +852,42 @@ const UnifiedDashboard = () => {
 
                         {/* Team Workload (Admin/PM only) */}
                         {(user?.role === 'Admin' || user?.role === 'Project Manager') && (
-                            <div className="bg-white p-6 rounded-lg shadow border border-gray-100">
-                                <h3 className="text-lg font-medium text-gray-900 mb-4">Team Workload (Active Tasks)</h3>
+                            <div className="bg-gradient-to-br from-white to-purple-50/20 p-8 rounded-2xl shadow-xl border border-purple-100/50 hover:shadow-2xl transition-all duration-300">
+                                <div className="flex items-center justify-between mb-6">
+                                    <h3 className="text-xl font-bold bg-gradient-to-r from-gray-800 to-purple-800 bg-clip-text text-transparent">Team Workload</h3>
+                                    <div className="w-3 h-3 bg-purple-500 rounded-full animate-pulse"></div>
+                                </div>
+                                <p className="text-sm text-gray-600 mb-4">Active Tasks & Estimated Hours</p>
                                 <div className="h-80 w-full">
-                                    <ResponsiveContainer width="100%" height={250}>
+                                    <ResponsiveContainer width="100%" height={280}>
                                         <BarChart
                                             data={teamStats.workload.map(w => ({ name: w.user?.name || 'Unassigned', tasks: w.activeTasks, hours: w.totalEstimatedHours }))}
                                             margin={{ top: 20, right: 30, left: 20, bottom: 5 }}
                                         >
-                                            <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E5E7EB" />
-                                            <XAxis dataKey="name" tick={{ fill: '#6B7280' }} axisLine={false} tickLine={false} />
-                                            <YAxis yAxisId="left" orientation="left" stroke="#3b82f6" />
-                                            <YAxis yAxisId="right" orientation="right" stroke="#10b981" />
-                                            <RechartsTooltip cursor={{ fill: '#F3F4F6' }} />
-                                            <Legend />
-                                            <Bar yAxisId="left" dataKey="tasks" name="Active Tasks" fill="#3b82f6" radius={[4, 4, 0, 0]} />
-                                            <Bar yAxisId="right" dataKey="hours" name="Est. Hours" fill="#10b981" radius={[4, 4, 0, 0]} />
+                                            <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E5E7EB" strokeOpacity={0.5} />
+                                            <XAxis 
+                                                dataKey="name" 
+                                                tick={{ fill: '#6B7280', fontSize: 12 }} 
+                                                axisLine={false} 
+                                                tickLine={false}
+                                            />
+                                            <YAxis yAxisId="left" orientation="left" stroke="#3b82f6" tick={{ fill: '#3b82f6' }} />
+                                            <YAxis yAxisId="right" orientation="right" stroke="#10b981" tick={{ fill: '#10b981' }} />
+                                            <RechartsTooltip 
+                                                cursor={{ fill: '#F3F4F6', fillOpacity: 0.3 }}
+                                                contentStyle={{ 
+                                                    backgroundColor: 'rgba(255, 255, 255, 0.95)', 
+                                                    border: '1px solid #e5e7eb',
+                                                    borderRadius: '12px',
+                                                    boxShadow: '0 10px 25px rgba(0, 0, 0, 0.1)'
+                                                }}
+                                            />
+                                            <Legend 
+                                                wrapperStyle={{ paddingTop: '20px' }}
+                                                iconType="rect"
+                                            />
+                                            <Bar yAxisId="left" dataKey="tasks" name="Active Tasks" fill="#3b82f6" radius={[8, 8, 0, 0]} animationDuration={1000} />
+                                            <Bar yAxisId="right" dataKey="hours" name="Est. Hours" fill="#10b981" radius={[8, 8, 0, 0]} animationDuration={1200} />
                                         </BarChart>
                                     </ResponsiveContainer>
                                 </div>
@@ -858,47 +896,56 @@ const UnifiedDashboard = () => {
 
                         {/* Personal Task List (for Team Members) */}
                         {user?.role === 'Team Member' && (
-                            <div className="bg-white shadow overflow-hidden sm:rounded-md">
-                                <div className="px-4 py-5 sm:px-6 border-b border-gray-200">
+                            <div className="bg-gradient-to-br from-white to-green-50/20 shadow-xl rounded-2xl overflow-hidden border border-green-100/50 hover:shadow-2xl transition-all duration-300">
+                                <div className="px-6 py-5 sm:px-6 border-b border-gray-100/50 bg-gradient-to-r from-green-50/30 to-transparent">
                                     <div className="flex items-center justify-between">
-                                        <h3 className="text-lg leading-6 font-medium text-gray-900">My Recent Tasks</h3>
-                                        <span className="text-sm text-gray-500">{myTasks.length} tasks</span>
+                                        <div className="flex items-center">
+                                            <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse mr-3"></div>
+                                            <h3 className="text-lg font-bold bg-gradient-to-r from-gray-800 to-green-800 bg-clip-text text-transparent">My Recent Tasks</h3>
+                                        </div>
+                                        <span className="text-sm font-semibold text-gray-600 bg-green-100/50 px-3 py-1 rounded-full">{myTasks.length} tasks</span>
                                     </div>
                                 </div>
 
-                                <ul className="divide-y divide-gray-200">
+                                <ul className="divide-y divide-gray-100/50">
                                     {myTasks.length === 0 ? (
-                                        <li className="px-4 py-8 text-center text-gray-500">
-                                            No tasks assigned to you yet.
+                                        <li className="px-6 py-12 text-center">
+                                            <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                                                <Target className="h-8 w-8 text-gray-400" />
+                                            </div>
+                                            <p className="text-gray-500 font-medium">No tasks assigned to you yet.</p>
+                                            <p className="text-sm text-gray-400 mt-2">Check back later for new assignments</p>
                                         </li>
                                     ) : (
-                                        myTasks.slice(0, 5).map((task) => (
-                                            <li key={task._id}>
-                                                <div className="px-4 py-4 sm:px-6">
+                                        myTasks.slice(0, 5).map((task, index) => (
+                                            <li key={task._id} className="group hover:bg-gradient-to-r hover:from-blue-50/30 hover:to-transparent transition-all duration-200">
+                                                <div className="px-6 py-4">
                                                     <div className="flex items-center justify-between">
                                                         <div className="flex-1">
                                                             <div className="flex items-center">
-                                                                <p className="text-sm font-medium text-gray-900 truncate">
+                                                                <div className="w-2 h-2 bg-blue-400 rounded-full mr-3 opacity-0 group-hover:opacity-100 transition-opacity duration-200"></div>
+                                                                <p className="text-sm font-semibold text-gray-900 truncate group-hover:text-blue-600 transition-colors duration-200">
                                                                     {task.title}
                                                                 </p>
                                                                 {isOverdue(task) && (
-                                                                    <span className="ml-2 inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-red-100 text-red-800">
+                                                                    <span className="ml-3 inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold bg-red-100 text-red-800 border border-red-200">
+                                                                        <AlertTriangle className="h-3 w-3 mr-1" />
                                                                         Overdue
                                                                     </span>
                                                                 )}
                                                             </div>
-                                                            <p className="text-sm text-gray-500 mt-1">
-                                                                {task.description || 'No description'}
+                                                            <p className="text-sm text-gray-600 mt-2 ml-5">
+                                                                {task.description || 'No description provided'}
                                                             </p>
-                                                            <div className="mt-2 flex items-center space-x-4">
-                                                                <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border ${getStatusColor(task.status)}`}>
+                                                            <div className="mt-3 ml-5 flex items-center space-x-3">
+                                                                <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold border ${getStatusColor(task.status)}`}>
                                                                     {task.status}
                                                                 </span>
-                                                                <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border ${getPriorityColor(task.priority)}`}>
+                                                                <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold border ${getPriorityColor(task.priority)}`}>
                                                                     {task.priority}
                                                                 </span>
                                                                 {task.scheduling?.manualDueDate && (
-                                                                    <div className="flex items-center text-xs text-gray-500">
+                                                                    <div className="flex items-center text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded-full">
                                                                         <Calendar className="h-3 w-3 mr-1" />
                                                                         {new Date(task.scheduling.manualDueDate).toLocaleDateString()}
                                                                     </div>
@@ -917,60 +964,85 @@ const UnifiedDashboard = () => {
 
                     {/* AI Optimization Results */}
                     {showAiResults && aiResults && (
-                        <div className="bg-white p-6 rounded-lg shadow border border-gray-100">
-                            <div className="flex justify-between items-start mb-6">
+                        <div className="bg-gradient-to-br from-white via-blue-50/20 to-purple-50/20 p-8 rounded-2xl shadow-xl border border-blue-100/50 hover:shadow-2xl transition-all duration-300">
+                            <div className="flex justify-between items-start mb-8">
                                 <div>
-                                    <h3 className="text-lg font-medium text-gray-900">AI Optimization Results</h3>
-                                    <p className="mt-1 text-sm text-gray-500">
+                                    <div className="flex items-center mb-2">
+                                        <div className="w-3 h-3 bg-blue-500 rounded-full animate-pulse mr-3"></div>
+                                        <h3 className="text-2xl font-bold bg-gradient-to-r from-gray-800 to-blue-800 bg-clip-text text-transparent">AI Optimization Results</h3>
+                                    </div>
+                                    <p className="text-sm text-gray-600 flex items-center">
+                                        <Activity className="h-4 w-4 mr-2 text-blue-500" />
                                         Powered by Mistral AI • Analyzed {aiResults.originalTasks?.length || 0} tasks
                                     </p>
                                 </div>
                                 <button
                                     onClick={() => setShowAiResults(false)}
-                                    className="text-gray-400 hover:text-gray-500"
+                                    className="text-gray-400 hover:text-gray-600 hover:bg-gray-100 p-2 rounded-lg transition-all duration-200"
                                 >
-                                    ×
+                                    <X className="h-5 w-5" />
                                 </button>
                             </div>
                             {/* Key Insights */}
-                            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-                                <div className="bg-blue-50 p-4 rounded-lg">
-                                    <h4 className="text-sm font-medium text-blue-900">Estimated Completion</h4>
-                                    <p className="text-lg font-semibold text-blue-600">
+                            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+                                <div className="bg-gradient-to-br from-blue-50 to-blue-100/50 p-6 rounded-xl border border-blue-200/50 hover:shadow-lg transition-all duration-300">
+                                    <div className="flex items-center mb-3">
+                                        <div className="w-8 h-8 bg-blue-500 rounded-lg flex items-center justify-center">
+                                            <Clock className="h-4 w-4 text-white" />
+                                        </div>
+                                        <h4 className="text-sm font-bold text-blue-900 ml-3">Estimated Completion</h4>
+                                    </div>
+                                    <p className="text-2xl font-bold text-blue-600">
                                         {aiResults.aiInsights?.estimatedCompletion || 'TBD'}
                                     </p>
                                 </div>
-                                <div className="bg-green-50 p-4 rounded-lg">
-                                    <h4 className="text-sm font-medium text-green-900">Tasks Analyzed</h4>
-                                    <p className="text-lg font-semibold text-green-600">
+                                <div className="bg-gradient-to-br from-green-50 to-green-100/50 p-6 rounded-xl border border-green-200/50 hover:shadow-lg transition-all duration-300">
+                                    <div className="flex items-center mb-3">
+                                        <div className="w-8 h-8 bg-green-500 rounded-lg flex items-center justify-center">
+                                            <Target className="h-4 w-4 text-white" />
+                                        </div>
+                                        <h4 className="text-sm font-bold text-green-900 ml-3">Tasks Analyzed</h4>
+                                    </div>
+                                    <p className="text-2xl font-bold text-green-600">
                                         {aiResults.originalTasks?.length || 0}
                                     </p>
                                 </div>
-                                <div className="bg-purple-50 p-4 rounded-lg">
-                                    <h4 className="text-sm font-medium text-purple-900">Optimization Score</h4>
-                                    <p className="text-lg font-semibold text-purple-600">High</p>
+                                <div className="bg-gradient-to-br from-purple-50 to-purple-100/50 p-6 rounded-xl border border-purple-200/50 hover:shadow-lg transition-all duration-300">
+                                    <div className="flex items-center mb-3">
+                                        <div className="w-8 h-8 bg-purple-500 rounded-lg flex items-center justify-center">
+                                            <TrendingUp className="h-4 w-4 text-white" />
+                                        </div>
+                                        <h4 className="text-sm font-bold text-purple-900 ml-3">Optimization Score</h4>
+                                    </div>
+                                    <p className="text-2xl font-bold text-purple-600">High</p>
                                 </div>
                             </div>
 
                             {/* Optimized Schedule */}
                             {aiResults.optimizedSchedule?.optimizedSchedule && (
-                                <div className="mb-6">
-                                    <h4 className="text-md font-medium text-gray-900 mb-3">Optimized Task Schedule</h4>
-                                    <div className="space-y-2 max-h-64 overflow-y-auto">
-                                        {aiResults.optimizedSchedule.optimizedSchedule.map((task, index) => (
-                                            <div key={index} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                                <div className="mb-8">
+                                    <div className="flex items-center mb-4">
+                                        <div className="w-2 h-2 bg-purple-500 rounded-full mr-3"></div>
+                                        <h4 className="text-lg font-bold text-gray-800">Optimized Task Schedule</h4>
+                                    </div>
+                                    <div className="space-y-3 max-h-80 overflow-y-auto pr-2">
+                                            {aiResults.optimizedSchedule.optimizedSchedule.map((task, index) => (
+                                            <div key={index} className="group flex items-center justify-between p-4 bg-gradient-to-r from-gray-50 to-white rounded-xl border border-gray-200/50 hover:shadow-lg hover:scale-102 transition-all duration-200">
                                                 <div className="flex-1">
-                                                    <p className="text-sm font-medium text-gray-900">{task.title}</p>
-                                                    <p className="text-xs text-gray-500">{task.reasoning}</p>
+                                                    <div className="flex items-center mb-2">
+                                                        <div className="w-2 h-2 bg-blue-400 rounded-full mr-3 opacity-0 group-hover:opacity-100 transition-opacity duration-200"></div>
+                                                        <p className="text-sm font-semibold text-gray-900 group-hover:text-blue-600 transition-colors duration-200">{task.title}</p>
+                                                    </div>
+                                                    <p className="text-xs text-gray-500 ml-5 italic">{task.reasoning}</p>
                                                 </div>
-                                                <div className="text-right ml-4">
-                                                    <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${task.priority === 'High' ? 'bg-red-100 text-red-800' :
-                                                            task.priority === 'Medium' ? 'bg-yellow-100 text-yellow-800' :
-                                                                'bg-green-100 text-green-800'
+                                                <div className="text-right ml-6">
+                                                    <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-bold ${task.priority === 'High' ? 'bg-red-100 text-red-800 border border-red-200' :
+                                                            task.priority === 'Medium' ? 'bg-yellow-100 text-yellow-800 border border-yellow-200' :
+                                                                'bg-green-100 text-green-800 border border-green-200'
                                                         }`}>
                                                         {task.priority}
                                                     </span>
-                                                    <p className="text-xs text-gray-500 mt-1">
+                                                    <p className="text-xs text-gray-600 mt-2 font-medium">
                                                         {task.suggestedStartDate} → {task.suggestedDueDate}
                                                     </p>
                                                 </div>
@@ -982,13 +1054,18 @@ const UnifiedDashboard = () => {
 
                             {/* Recommendations */}
                             {aiResults.aiInsights?.recommendations?.length > 0 && (
-                                <div className="mb-6">
-                                    <h4 className="text-md font-medium text-gray-900 mb-3">AI Recommendations</h4>
-                                    <ul className="space-y-2">
+                                <div className="mb-8">
+                                    <div className="flex items-center mb-4">
+                                        <div className="w-2 h-2 bg-green-500 rounded-full mr-3"></div>
+                                        <h4 className="text-lg font-bold text-gray-800">AI Recommendations</h4>
+                                    </div>
+                                    <ul className="space-y-3">
                                         {aiResults.aiInsights.recommendations.map((rec, index) => (
-                                            <li key={index} className="flex items-start">
-                                                <span className="flex-shrink-0 w-2 h-2 bg-blue-600 rounded-full mt-2 mr-3"></span>
-                                                <span className="text-sm text-gray-700">{rec}</span>
+                                            <li key={index} className="group flex items-start p-4 bg-gradient-to-r from-green-50/50 to-white rounded-xl border border-green-200/50 hover:shadow-lg transition-all duration-200">
+                                                <div className="flex-shrink-0 w-6 h-6 bg-gradient-to-br from-green-500 to-emerald-600 rounded-full mt-0.5 mr-4 flex items-center justify-center">
+                                                    <div className="w-2 h-2 bg-white rounded-full"></div>
+                                                </div>
+                                                <span className="text-sm text-gray-700 font-medium leading-relaxed">{rec}</span>
                                             </li>
                                         ))}
                                     </ul>
@@ -997,13 +1074,21 @@ const UnifiedDashboard = () => {
 
                             {/* Potential Bottlenecks */}
                             {aiResults.aiInsights?.bottlenecks?.length > 0 && (
-                                <div className="mb-6">
-                                    <h4 className="text-md font-medium text-gray-900 mb-3">Potential Bottlenecks</h4>
-                                    <div className="space-y-2">
+                                <div className="mb-8">
+                                    <div className="flex items-center mb-4">
+                                        <div className="w-2 h-2 bg-yellow-500 rounded-full mr-3"></div>
+                                        <h4 className="text-lg font-bold text-gray-800">Potential Bottlenecks</h4>
+                                    </div>
+                                    <div className="space-y-3">
                                         {aiResults.aiInsights.bottlenecks.map((bottleneck, index) => (
-                                            <div key={index} className="flex items-start p-3 bg-yellow-50 rounded-lg">
-                                                <AlertTriangle className="w-4 h-4 text-yellow-600 mt-0.5 mr-2 flex-shrink-0" />
-                                                <span className="text-sm text-yellow-800">{bottleneck}</span>
+                                            <div key={index} className="group flex items-start p-4 bg-gradient-to-r from-yellow-50/50 to-orange-50/30 rounded-xl border border-yellow-200/50 hover:shadow-lg transition-all duration-200">
+                                                <div className="flex-shrink-0 w-8 h-8 bg-gradient-to-br from-yellow-500 to-orange-600 rounded-lg mt-0.5 mr-4 flex items-center justify-center">
+                                                    <AlertTriangle className="w-4 h-4 text-white" />
+                                                </div>
+                                                <div className="flex-1">
+                                                    <span className="text-sm font-semibold text-yellow-800">{bottleneck}</span>
+                                                    <p className="text-xs text-yellow-600 mt-1">Requires immediate attention</p>
+                                                </div>
                                             </div>
                                         ))}
                                     </div>
@@ -1013,20 +1098,37 @@ const UnifiedDashboard = () => {
                             {/* Resource Allocation */}
                             {aiResults.aiInsights?.resourceAllocation && Object.keys(aiResults.aiInsights.resourceAllocation).length > 0 && (
                                 <div>
-                                    <h4 className="text-md font-medium text-gray-900 mb-3">Resource Allocation</h4>
-                                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                                    <div className="flex items-center mb-4">
+                                        <div className="w-2 h-2 bg-purple-500 rounded-full mr-3"></div>
+                                        <h4 className="text-lg font-bold text-gray-800">Resource Allocation</h4>
+                                    </div>
+                                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                                         {Object.entries(aiResults.aiInsights.resourceAllocation).map(([member, allocation]) => (
-                                            <div key={member} className="p-3 border border-gray-200 rounded-lg">
-                                                <p className="text-sm font-medium text-gray-900">{member}</p>
-                                                <div className="mt-1 text-xs text-gray-500">
-                                                    <p>Tasks: {allocation.tasksCount}</p>
-                                                    <p>Hours: {allocation.totalHours}</p>
-                                                    <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${allocation.workload === 'Balanced' ? 'bg-green-100 text-green-800' :
-                                                            allocation.workload === 'Overloaded' ? 'bg-red-100 text-red-800' :
-                                                                'bg-gray-100 text-gray-800'
-                                                        }`}>
-                                                        {allocation.workload}
-                                                    </span>
+                                            <div key={member} className="group p-5 bg-gradient-to-br from-purple-50/50 to-white rounded-xl border border-purple-200/50 hover:shadow-lg transition-all duration-300">
+                                                <div className="flex items-center justify-between mb-3">
+                                                    <p className="text-sm font-bold text-gray-900 group-hover:text-purple-600 transition-colors duration-200">{member}</p>
+                                                    <div className={`w-3 h-3 rounded-full ${allocation.workload === 'Balanced' ? 'bg-green-500' :
+                                                            allocation.workload === 'Overloaded' ? 'bg-red-500' :
+                                                                'bg-gray-400'
+                                                        } animate-pulse`}></div>
+                                                </div>
+                                                <div className="space-y-2">
+                                                    <div className="flex justify-between items-center">
+                                                        <span className="text-xs text-gray-600">Tasks:</span>
+                                                        <span className="text-sm font-bold text-gray-900">{allocation.tasksCount}</span>
+                                                    </div>
+                                                    <div className="flex justify-between items-center">
+                                                        <span className="text-xs text-gray-600">Hours:</span>
+                                                        <span className="text-sm font-bold text-gray-900">{allocation.totalHours}</span>
+                                                    </div>
+                                                    <div className="mt-3">
+                                                        <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-bold ${allocation.workload === 'Balanced' ? 'bg-green-100 text-green-800 border border-green-200' :
+                                                                allocation.workload === 'Overloaded' ? 'bg-red-100 text-red-800 border border-red-200' :
+                                                                    'bg-gray-100 text-gray-800 border border-gray-200'
+                                                            }`}>
+                                                            {allocation.workload}
+                                                        </span>
+                                                    </div>
                                                 </div>
                                             </div>
                                         ))}
