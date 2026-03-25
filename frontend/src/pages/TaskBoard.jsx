@@ -302,31 +302,6 @@ const TaskBoard = () => {
                 console.log('✅ My tasks filtered:', myTasks.length);
                 return myTasks;
                 
-            case 'unassigned':
-                const unassignedTasks = tasks.filter(task => {
-                    if (!task) return false;
-                    
-                    const assignedTo = task.assignedTo;
-                    
-                    // Task is unassigned if:
-                    // 1. assignedTo is null or undefined
-                    // 2. assignedTo is an empty array
-                    // 3. assignedTo is an empty string
-                    if (assignedTo === null || assignedTo === undefined || assignedTo === '') {
-                        return true;
-                    }
-                    
-                    // If assignedTo is an array, check if it's empty
-                    if (Array.isArray(assignedTo)) {
-                        return assignedTo.length === 0;
-                    }
-                    
-                    return false;
-                });
-                
-                console.log('✅ Unassigned tasks filtered:', unassignedTasks.length);
-                return unassignedTasks;
-                
             default:
                 console.log('✅ All tasks returned:', tasks.length);
                 return tasks;
@@ -533,37 +508,19 @@ const TaskBoard = () => {
 
                             {/* Filter Buttons */}
                             <div className="flex space-x-2">
-                                {user?.role === 'Admin' && (
-                                    <button
-                                        onClick={() => setFilter('all')}
-                                        className={`inline-flex items-center px-3 py-2 border text-sm font-medium rounded-xl transition-all ${
-                                            filter === 'all' 
-                                                ? 'bg-blue-600 text-white border-blue-600' 
-                                                : darkMode 
-                                                    ? 'bg-gray-700 text-gray-200 border-gray-600 hover:bg-gray-600' 
-                                                    : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
-                                        }`}
-                                    >
-                                        <Users className="w-4 h-4 mr-1" />
-                                        All Tasks
-                                    </button>
-                                )}
-                                
-                                {(user?.role === 'Admin' || user?.role === 'Project Manager') && (
-                                    <button
-                                        onClick={() => setFilter('unassigned')}
-                                        className={`inline-flex items-center px-3 py-2 border text-sm font-medium rounded-xl transition-all ${
-                                            filter === 'unassigned' 
-                                                ? 'bg-orange-600 text-white border-orange-600' 
-                                                : darkMode 
-                                                    ? 'bg-gray-700 text-gray-200 border-gray-600 hover:bg-gray-600' 
-                                                    : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
-                                        }`}
-                                    >
-                                        <Filter className="w-4 h-4 mr-1" />
-                                        Unassigned
-                                    </button>
-                                )}
+                                <button
+                                    onClick={() => setFilter('all')}
+                                    className={`inline-flex items-center px-3 py-2 border text-sm font-medium rounded-xl transition-all ${
+                                        filter === 'all' 
+                                            ? 'bg-blue-600 text-white border-blue-600' 
+                                            : darkMode 
+                                                ? 'bg-gray-700 text-gray-200 border-gray-600 hover:bg-gray-600' 
+                                                : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
+                                    }`}
+                                >
+                                    <Users className="w-4 h-4 mr-1" />
+                                    All
+                                </button>
                                 
                                 <button
                                     onClick={() => setFilter('my')}
@@ -573,10 +530,10 @@ const TaskBoard = () => {
                                             : darkMode 
                                                 ? 'bg-gray-700 text-gray-200 border-gray-600 hover:bg-gray-600' 
                                                 : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
-                                        }`}
+                                    }`}
                                 >
                                     <User className="w-4 h-4 mr-1" />
-                                    {user?.role === 'Admin' ? 'My Tasks' : 'My Tasks'}
+                                    My Tasks
                                 </button>
                             </div>
 
@@ -643,17 +600,13 @@ const TaskBoard = () => {
                             <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${
                                 filter === 'my' 
                                     ? 'bg-green-600 text-white' 
-                                    : filter === 'unassigned'
-                                    ? 'bg-orange-600 text-white'
                                     : filter === 'all'
                                     ? 'bg-blue-600 text-white'
                                     : 'bg-gray-600 text-white'
                             }`}>
                                 {filter === 'my' && <User className="w-4 h-4 mr-1" />}
-                                {filter === 'unassigned' && <Filter className="w-4 h-4 mr-1" />}
                                 {filter === 'all' && <Users className="w-4 h-4 mr-1" />}
-                                {filter === 'my' ? 'My Tasks' : filter === 'unassigned' ? 'Unassigned Tasks' : 
-                                 user?.role === 'Admin' ? 'All Tasks' : 'My Tasks'}
+                                {filter === 'my' ? 'My Tasks' : 'All Tasks'}
                             </span>
                             <span className={`ml-2 ${darkMode ? 'text-gray-300' : 'text-gray-600'}`}>
                                 ({searchQuery.trim() ? 
