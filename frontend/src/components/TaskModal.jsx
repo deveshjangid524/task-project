@@ -503,7 +503,7 @@ const TaskModal = ({ task, onClose, allTasks }) => {
 
                                     {/* Dropdown Results */}
                                     {isDropdownOpen && (
-                                        <div className="absolute z-10 w-full mt-1 bg-white border border-gray-200 rounded-xl shadow-lg max-h-64 overflow-hidden">
+                                        <div className="absolute z-10 w-full mt-1 bg-white border border-gray-200 rounded-xl shadow-lg max-h-64 overflow-y-auto">
                                             {filteredUsers.length > 0 ? (
                                                 <div className="py-2">
                                                     {filteredUsers.map(filteredUser => (

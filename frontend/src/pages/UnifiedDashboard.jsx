@@ -99,36 +99,85 @@ const UnifiedDashboard = () => {
             console.log('👤 Current user:', user);
             console.log('👤 User role:', user?.role);
             
-            // Fetch team analytics
-            const teamResponse = await api.get('/analytics/dashboard');
-            console.log('📊 Team analytics response:', teamResponse.data);
-            setTeamStats(teamResponse.data);
-
-            // Fetch all tasks for team member tracking (Admin/PM only)
+            // Fetch all tasks first
+            const allTasksResponse = await api.get('/tasks');
+            const allTasks = allTasksResponse.data;
+            console.log('📊 All tasks fetched:', allTasks.length);
+            
+            // Filter tasks based on user role - using same logic as TaskBoard
+            let filteredTasks = [];
             let userTasks = [];
+            
+            if (user?.role === 'Admin') {
+                // Admin sees all tasks
+                filteredTasks = allTasks;
+                userTasks = allTasks;
+                console.log('👑 Admin: Showing all tasks:', filteredTasks.length);
+            } else if (user?.role === 'Project Manager') {
+                // Project Manager sees all tasks they created or are assigned to
+                filteredTasks = allTasks.filter(task => {
+                    if (!task) return false;
+                    
+                    // PM sees any task they created, regardless of who it's assigned to
+                    const pmCreated = task.createdBy && (
+                        (typeof task.createdBy === 'string' && task.createdBy === user._id) ||
+                        (task.createdBy._id && task.createdBy._id.toString() === user._id) ||
+                        (task.createdBy === user._id)
+                    );
+                    
+                    // PM also sees tasks assigned to them
+                    const pmAssigned = task.assignedTo && (
+                        (Array.isArray(task.assignedTo) && task.assignedTo.some(assignee => 
+                            (typeof assignee === 'string' && assignee === user._id) ||
+                            (assignee._id && assignee._id.toString() === user._id) ||
+                            (assignee.toString && assignee.toString() === user._id)
+                        )) ||
+                        (typeof task.assignedTo === 'string' && task.assignedTo === user._id) ||
+                        (task.assignedTo._id && task.assignedTo._id.toString() === user._id)
+                    );
+                    
+                    return pmCreated || pmAssigned;
+                });
+                userTasks = filteredTasks;
+                console.log('👨‍💼 PM: Showing filtered tasks:', filteredTasks.length);
+            } else if (user?.role === 'Team Member') {
+                // Team Member sees only tasks assigned to them (handle multi-assignee)
+                filteredTasks = allTasks.filter(task => {
+                    if (!task) return false;
+                    
+                    const isAssigned = task.assignedTo && (
+                        (Array.isArray(task.assignedTo) && task.assignedTo.some(assignee => 
+                            (typeof assignee === 'string' && assignee === user._id) ||
+                            (assignee._id && assignee._id.toString() === user._id) ||
+                            (assignee.toString && assignee.toString() === user._id)
+                        )) ||
+                        (typeof task.assignedTo === 'string' && task.assignedTo === user._id) ||
+                        (task.assignedTo._id && task.assignedTo._id.toString() === user._id)
+                    );
+                    
+                    return isAssigned;
+                });
+                userTasks = filteredTasks;
+                console.log('👤 Team Member: Showing assigned tasks:', filteredTasks.length);
+            } else {
+                // Default case - no tasks if role is not recognized
+                filteredTasks = [];
+                userTasks = [];
+            }
+            
+            // Set myTasks with the properly filtered data
+            setMyTasks(userTasks);
+            console.log('📋 My tasks set:', userTasks.length);
+
+            // Fetch team analytics (Admin/PM only)
             if (user?.role === 'Admin' || user?.role === 'Project Manager') {
-                console.log('👤 User is Admin/PM, fetching all tasks...');
-                const allTasksResponse = await api.get('/tasks');
-                const allTasks = allTasksResponse.data;
-                console.log('📋 All tasks fetched:', allTasks.length);
-                
-                // Debug: Check first few tasks for createdBy field
-                console.log('🔍 Sample task structures:', allTasks.slice(0, 3).map(t => ({
-                    title: t.title,
-                    createdBy: t.createdBy,
-                    assignedTo: t.assignedTo
-                })));
+                const teamResponse = await api.get('/analytics/dashboard');
+                console.log('📊 Team analytics response:', teamResponse.data);
+                setTeamStats(teamResponse.data);
 
-                // Filter tasks based on role:
-                // - Admin: See all tasks
-                // - Project Manager: See all tasks (they need to manage the team)
-                const filteredTasks = user?.role === 'Project Manager' || user?.role === 'Admin'
-                    ? allTasks // Both Admin and PM see all tasks
-                    : allTasks; // This line won't be reached but kept for safety
-
-                // Group tasks by team member
+                // Group tasks by team member for team views
                 const tasksByMember = {};
-                filteredTasks.forEach(task => {
+                allTasks.forEach(task => {
                     // Handle both single assignee and multi-assignee scenarios
                     if (task.assignedTo) {
                         let assignees = [];
@@ -142,8 +191,8 @@ const UnifiedDashboard = () => {
                         }
 
                         assignees.forEach(assignee => {
-                            const memberId = assignee._id;
-                            const memberName = assignee.name;
+                            const memberId = assignee._id || assignee;
+                            const memberName = assignee.name || 'Unknown';
 
                             if (!tasksByMember[memberId]) {
                                 tasksByMember[memberId] = {
@@ -177,8 +226,6 @@ const UnifiedDashboard = () => {
                                 tasksByMember[memberId].overdueTasks++;
                             }
                         });
-                    } else {
-                        // Task has no assignedTo field
                     }
                 });
 
@@ -188,114 +235,49 @@ const UnifiedDashboard = () => {
                     completionRate: member.totalTasks > 0 ? (member.completedTasks / member.totalTasks * 100) : 0
                 }));
 
-                // Set team member tasks state for Admin/PM views
                 setTeamMemberTasks(teamMembersData);
                 console.log('👥 Team member tasks set:', teamMembersData.length);
-
-                // For PM, sort by assignee name and group tasks by assignment chain
-                // But only show task details for tasks PM created/assigned
-                if (user?.role === 'Project Manager') {
-                    teamMembersData.forEach(member => {
-                        const tasksByAssigner = {};
-
-                        member.tasks.forEach(task => {
-                            let assignerId, assignerName, assignerRole;
-
-                            const pmCreated = task.createdBy && task.createdBy._id === user._id;
-                            const pmAssigned = task.assignedTo && task.assignedTo._id === user._id;
-
-                            if (pmCreated || pmAssigned) {
-                                assignerId = user._id;
-                                assignerName = user.name;
-                                assignerRole = 'Project Manager';
-                            } else {
-                                assignerId = 'restricted';
-                                assignerName = 'Restricted Access';
-                                assignerRole = 'Restricted';
-                            }
-
-                            if (!tasksByAssigner[assignerId]) {
-                                tasksByAssigner[assignerId] = {
-                                    assignerId,
-                                    assignerName,
-                                    assignerRole,
-                                    tasks: []
-                                };
-                            }
-
-                            tasksByAssigner[assignerId].tasks.push(task);
-                        }); // ✅ CLOSE inner forEach
-
-                        member.tasksByAssigner = Object.values(tasksByAssigner);
-                    }); // ✅ CLOSE outer forEach
-
-                    // Filter tasks for current user based on role
-                    let userTasks;
-                    if (user?.role === 'Project Manager' || user?.role === 'Admin') {
-                        // Both Admin and PM see all tasks for management purposes
-                        userTasks = allTasks;
-                        console.log('👑 Admin/PM sees all tasks:', userTasks.length);
-                    } else {
-                        // Team Member sees only tasks assigned to them (handle multi-assignee)
-                        userTasks = allTasks.filter(task =>
-                            task.assignedTo && (
-                                (Array.isArray(task.assignedTo) && task.assignedTo.some(assignee => assignee._id === user._id)) ||
-                                (task.assignedTo._id === user._id)
-                            )
-                        );
-                    }
-                } else {
-                    // Team Member: fetch only their assigned tasks
-                    console.log('👤 User is Team Member, fetching personal tasks...');
-                    const allTasksResponse = await api.get('/tasks');
-                    const allTasks = allTasksResponse.data;
-                    
-                    // Filter tasks assigned to current user
-                    userTasks = allTasks.filter(task =>
-                        task.assignedTo && (
-                            (Array.isArray(task.assignedTo) && task.assignedTo.some(assignee => assignee._id === user._id)) ||
-                            (task.assignedTo._id === user._id)
-                        )
-                    );
-                    console.log('📋 Personal tasks fetched:', userTasks.length);
-                    
-                    // Set empty team member tasks for team members
-                    setTeamMemberTasks([]);
-                }
-
-                setMyTasks(userTasks);
-                console.log('📊 My tasks set:', userTasks.length);
-
-                // Calculate personal statistics
-                const now = new Date();
-                const completed = userTasks.filter(t => t.status === 'Completed').length;
-                const inProgress = userTasks.filter(t => t.status === 'In Progress').length;
-                const todo = userTasks.filter(t => t.status === 'To Do').length;
-                const overdue = userTasks.filter(t =>
-                    t.scheduling?.manualDueDate &&
-                    new Date(t.scheduling.manualDueDate) < now &&
-                    t.status !== 'Completed'
-                ).length;
-
-                console.log('📈 Personal stats calculated:', { completed, inProgress, todo, overdue });
-
-                const completionRate = userTasks.length > 0 ? (completed / userTasks.length * 100) : 0;
-
-                setPersonalStats({
-                    total: userTasks.length,
-                    completed,
-                    inProgress,
-                    todo,
-                    overdue,
-                    completionRate
+            } else {
+                // Set empty team data for team members
+                setTeamMemberTasks([]);
+                setTeamStats({
+                    totalTasks: 0,
+                    completedTasks: 0,
+                    blockedTasks: 0,
+                    overdueTasks: [],
+                    completionRate: 0,
+                    workload: []
                 });
-                console.log('✅ Personal stats set:', { total: userTasks.length, completed, inProgress, todo, overdue, completionRate });
-
-                setLastUpdated(new Date());
-
             }
-        }
-        catch (err) {
+
+            // Calculate personal statistics using the filtered userTasks
+            const now = new Date();
+            const completed = userTasks.filter(t => t.status === 'Completed').length;
+            const inProgress = userTasks.filter(t => t.status === 'In Progress').length;
+            const todo = userTasks.filter(t => t.status === 'To Do').length;
+            const overdue = userTasks.filter(t =>
+                t.scheduling?.manualDueDate &&
+                new Date(t.scheduling.manualDueDate) < now &&
+                t.status !== 'Completed'
+            ).length;
+
+            console.log('📈 Personal stats calculated:', { completed, inProgress, todo, overdue });
+
+            const completionRate = userTasks.length > 0 ? (completed / userTasks.length * 100) : 0;
+
+            setPersonalStats({
+                total: userTasks.length,
+                completed,
+                inProgress,
+                todo,
+                overdue,
+                completionRate
+            });
+            console.log('✅ Personal stats set:', { total: userTasks.length, completed, inProgress, todo, overdue, completionRate });
+
+            setLastUpdated(new Date());
+
+        } catch (err) {
             console.error('Dashboard error:', err);
 
             if (err.response?.status === 401) {
@@ -323,6 +305,9 @@ const UnifiedDashboard = () => {
                 overdue: 0,
                 completionRate: 0
             });
+
+            setMyTasks([]);
+            setTeamMemberTasks([]);
         } finally {
             setLoading(false);
             setRefreshing(false);
@@ -1136,12 +1121,14 @@ const UnifiedDashboard = () => {
                             )}
                         </div>
                     )}
+                </div>
+            )}
 
-                    {/* Personal Tasks View */}
-                    {activeView === 'personal' && (
-                        <div>
-                            {/* Personal Stats Cards */}
-                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+            {/* Personal Tasks View */}
+            {activeView === 'personal' && (
+                <div>
+                    {/* Personal Stats Cards */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
                                 <div className="bg-white p-6 rounded-lg shadow border border-gray-100">
                                     <div className="flex items-center">
                                         <div className="flex-shrink-0">
@@ -1325,13 +1312,13 @@ const UnifiedDashboard = () => {
                                     )}
                                 </ul>
                             </div>
-                            )
-                        </div>)}
+                </div>
+            )}
 
-                    {activeView === 'team' && (user?.role === 'Admin' || user?.role === 'Project Manager') && (
-                        <div>
-                            {/* Team Stats Cards */}
-                            <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4 mb-8">
+            {activeView === 'team' && (user?.role === 'Admin' || user?.role === 'Project Manager') && (
+                <div>
+                    {/* Team Stats Cards */}
+                    <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4 mb-8">
                                 {[
                                     { name: 'Total Tasks', stat: teamStats.totalTasks, icon: Activity, color: 'text-blue-500', bg: 'bg-blue-100' },
                                     { name: 'Completion Rate', stat: `${teamStats.completionRate.toFixed(1)}%`, icon: CheckCircle, color: 'text-green-500', bg: 'bg-green-100' },
@@ -1441,13 +1428,13 @@ const UnifiedDashboard = () => {
                                     </div>
                                 </div>
                             </div>
-                        </div>
-                    )}
+                </div>
+            )}
 
-                    {/* Team Members View (Admin/PM only) */}
-                    {activeView === 'team-members' && (user?.role === 'Admin' || user?.role === 'Project Manager') && (
-                        <div>
-                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {/* Team Members View (Admin/PM only) */}
+            {activeView === 'team-members' && (user?.role === 'Admin' || user?.role === 'Project Manager') && (
+                <div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                                 {teamMemberTasks.map((member) => (
                                     <div key={member.memberId} className="bg-white p-6 rounded-lg shadow border border-gray-100">
                                         <div className="flex items-center justify-between mb-4">
@@ -1782,8 +1769,8 @@ const UnifiedDashboard = () => {
                             </div>
                         </div>
                     )}
-                </div>
-            )}
+            
+            
 
             {/* AI Copilot Panel */}
             {showCopilotPanel && aiResults && (
