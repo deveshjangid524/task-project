@@ -3,7 +3,7 @@ import { useDroppable } from '@dnd-kit/core';
 import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import SortableTaskItem from './SortableTaskItem';
 
-const BoardColumn = ({ title, tasks, onTaskClick, onStatusChange }) => {
+const BoardColumn = ({ title, tasks, onTaskClick, onStatusChange, searchQuery }) => {
     const { setNodeRef } = useDroppable({
         id: title,
     });
@@ -34,6 +34,7 @@ const BoardColumn = ({ title, tasks, onTaskClick, onStatusChange }) => {
                             task={task}
                             onClick={() => onTaskClick(task)}
                             onStatusChange={onStatusChange}
+                            searchQuery={searchQuery}
                         />
                     ))}
                 </SortableContext>

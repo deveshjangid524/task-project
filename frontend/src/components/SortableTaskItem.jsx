@@ -10,7 +10,7 @@ const priorityColors = {
     Critical: 'bg-red-100 text-red-800 border-red-200',
 };
 
-const SortableTaskItem = ({ task, onClick, onStatusChange }) => {
+const SortableTaskItem = ({ task, onClick, onStatusChange, searchQuery }) => {
     const {
         attributes,
         listeners,
@@ -38,6 +38,18 @@ const SortableTaskItem = ({ task, onClick, onStatusChange }) => {
         if (onStatusChange) {
             onStatusChange(task._id, newStatus);
         }
+    };
+
+    // Check if task matches search query for highlighting
+    const isTaskHighlighted = () => {
+        if (!searchQuery || !searchQuery.trim()) return false;
+        
+        const query = searchQuery.toLowerCase();
+        return (
+            task.title?.toLowerCase().includes(query) ||
+            task.description?.toLowerCase().includes(query) ||
+            task.category?.toLowerCase().includes(query)
+        );
     };
 
     const getQuickActions = () => {
@@ -113,7 +125,13 @@ const SortableTaskItem = ({ task, onClick, onStatusChange }) => {
             {...attributes}
             {...listeners}
             onClick={onClick}
-            className={`bg-white p-4 rounded-lg shadow-sm border border-gray-200 cursor-grab active:cursor-grabbing hover:border-primary-400 hover:shadow-md transition-all ${isDragging ? 'shadow-lg border-primary-500' : ''}`}
+            className={`bg-white p-4 rounded-lg shadow-sm border cursor-grab active:cursor-grabbing hover:border-primary-400 hover:shadow-md transition-all ${
+                isDragging ? 'shadow-lg border-primary-500' : ''
+            } ${
+                isTaskHighlighted() 
+                    ? 'ring-2 ring-blue-400 ring-opacity-50 border-blue-400 bg-blue-50' 
+                    : 'border-gray-200'
+            }`}
         >
             <div className="flex justify-between items-start mb-2">
                 <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium border ${priorityColors[task.priority] || priorityColors.Medium}`}>

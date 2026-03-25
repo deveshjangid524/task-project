@@ -29,7 +29,7 @@ const TaskBoard = () => {
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false);
     const [selectedTask, setSelectedTask] = useState(null);
-    const [filter, setFilter] = useState('all'); // 'all', 'my', 'unassigned'
+    const [filter, setFilter] = useState('all'); // 'all', 'my'
     const [darkMode, setDarkMode] = useState(() => {
         const savedTheme = localStorage.getItem('theme');
         return savedTheme === 'dark' || (!savedTheme && window.matchMedia('(prefers-color-scheme: dark)').matches);
@@ -236,93 +236,6 @@ const TaskBoard = () => {
         })
     );
 
-    const getTasksByStatus = (status) => {
-        // Use the filteredTasks instead of raw tasks
-        const exactMatch = filteredTasks.filter(task => task.status === status);
-        const caseInsensitiveMatch = filteredTasks.filter(task => task.status && task.status.toLowerCase() === status.toLowerCase());
-        
-        // Use case-insensitive match as fallback
-        const tasksByStatus = exactMatch.length > 0 ? exactMatch : caseInsensitiveMatch;
-        
-        console.log(`📋 Getting tasks for status "${status}":`, tasksByStatus.length);
-        
-        return tasksByStatus;
-    };
-
-    const handleDragEnd = async (event) => {
-        const { active, over } = event;
-
-        if (!over) return;
-
-        const activeId = active.id;
-        const overId = over.id;
-
-        const activeTask = tasks.find(t => t._id === activeId);
-        if (!activeTask) return;
-
-        // Check if dragging over a column or another item
-        const isOverAColumn = COLUMNS.includes(overId);
-        let newStatus = activeTask.status;
-
-        if (isOverAColumn) {
-            newStatus = overId;
-        } else {
-            const overTask = tasks.find(t => t._id === overId);
-            if (overTask) {
-                newStatus = overTask.status;
-            }
-        }
-
-        if (activeTask.status !== newStatus) {
-            // Check if task is being completed
-            const isCompleting = activeTask.status !== 'Completed' && newStatus === 'Completed';
-            
-            // Optimistic UI update
-            setTasks((prevTasks) =>
-                prevTasks.map(t => t._id === activeId ? { ...t, status: newStatus } : t)
-            );
-
-            // Backend update
-            try {
-                await api.put(`/tasks/${activeId}`, { status: newStatus });
-                
-                // Add rewards if task is completed (with synchronization)
-                if (isCompleting) {
-                    addRewardsSafely(activeId, 100);
-                    
-                    // Show special completion notification
-                    showNotification('success', '🎉 Task completed! +100 reward points earned!', 'Task Completed & Rewarded!');
-                }
-            } catch (error) {
-                console.error('Error updating task status', error);
-                // Revert on failure
-                fetchTasks();
-            }
-        }
-    };
-
-    const handleOpenModal = (task = null) => {
-        console.log("New Task button clicked");
-        setSelectedTask(task);
-        setIsModalOpen(true);
-    };
-
-    const handleOpenDetailsModal = (task) => {
-        setSelectedTask(task);
-        setIsDetailsModalOpen(true);
-    };
-
-    const handleCloseModal = () => {
-        setSelectedTask(null);
-        setIsModalOpen(false);
-        fetchTasks(); // Refresh list to get new/updated task
-    };
-
-    const handleCloseDetailsModal = () => {
-        setSelectedTask(null);
-        setIsDetailsModalOpen(false);
-    };
-
     // Filter tasks based on selected filter (memoized for performance)
     const filteredTasks = useMemo(() => {
         if (!user) return []; // No user, no tasks
@@ -420,113 +333,395 @@ const TaskBoard = () => {
         }
     }, [tasks, filter, user]);
 
-    if (loading) return <div className="p-8 text-center">Loading board...</div>;
+    const getTasksByStatus = (status) => {
+        // Use the filteredTasks instead of raw tasks
+        const exactMatch = filteredTasks.filter(task => task.status === status);
+        const caseInsensitiveMatch = filteredTasks.filter(task => task.status && task.status.toLowerCase() === status.toLowerCase());
+        
+        // Use case-insensitive match as fallback
+        const tasksByStatus = exactMatch.length > 0 ? exactMatch : caseInsensitiveMatch;
+        
+        console.log(`📋 Getting tasks for status "${status}":`, tasksByStatus.length);
+        
+        return tasksByStatus;
+    };
+
+    const toggleDarkMode = () => {
+        setDarkMode(!darkMode);
+    };
+
+    // Filter tasks based on search query
+    const getFilteredTasks = () => {
+        if (!searchQuery.trim()) return filteredTasks;
+        
+        return filteredTasks.filter(task => 
+            task.title?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+            task.description?.toLowerCase().includes(searchQuery.toLowerCase())
+        );
+    };
+
+    // Calculate task statistics (moved after filteredTasks definition)
+    const taskStats = useMemo(() => {
+        if (!user) return { total: 0, completed: 0, inProgress: 0, blocked: 0 };
+        
+        return {
+            total: filteredTasks.length,
+            completed: filteredTasks.filter(t => t.status === 'Completed').length,
+            inProgress: filteredTasks.filter(t => t.status === 'In Progress').length,
+            blocked: filteredTasks.filter(t => t.status === 'Blocked').length
+        };
+    }, [filteredTasks, user]);
+
+    const handleOpenModal = (task = null) => {
+        console.log("New Task button clicked");
+        setSelectedTask(task);
+        setIsModalOpen(true);
+    };
+
+    const handleOpenDetailsModal = (task) => {
+        setSelectedTask(task);
+        setIsDetailsModalOpen(true);
+    };
+
+    const handleCloseModal = () => {
+        setSelectedTask(null);
+        setIsModalOpen(false);
+        fetchTasks(); // Refresh list to get new/updated task
+    };
+
+    const handleCloseDetailsModal = () => {
+        setSelectedTask(null);
+        setIsDetailsModalOpen(false);
+    };
+
+    const handleDragEnd = async (event) => {
+        const { active, over } = event;
+
+        if (!over) return;
+
+        const taskId = active.id;
+        const newStatus = over.id;
+
+        // Find the task
+        const task = tasks.find(t => t._id === taskId);
+        if (!task) return;
+
+        // Don't do anything if status hasn't changed
+        if (task.status === newStatus) return;
+
+        try {
+            // Optimistic UI update
+            setTasks(prevTasks => 
+                prevTasks.map(t => 
+                    t._id === taskId 
+                        ? { ...t, status: newStatus }
+                        : t
+                )
+            );
+
+            // Backend update
+            await api.put(`/tasks/${taskId}`, { status: newStatus });
+            
+            // Check if task is being completed
+            const isCompleting = task.status !== 'Completed' && newStatus === 'Completed';
+            
+            if (isCompleting) {
+                addRewardsSafely(taskId, 100);
+                showNotification('success', '🎉 Task completed! +100 reward points earned!', 'Task Completed & Rewarded!');
+            } else {
+                const statusMessages = {
+                    'In Progress': 'Task started',
+                    'In Review': 'Task submitted for review',
+                    'Completed': 'Task completed',
+                    'Blocked': 'Task blocked',
+                    'To Do': 'Task reopened'
+                };
+                
+                showNotification('success', statusMessages[newStatus] || 'Status updated', 'Task Updated');
+            }
+            
+        } catch (error) {
+            console.error('Error updating task status:', error);
+            // Revert on error
+            fetchTasks();
+        }
+    };
+
+    if (loading) return (
+        <div className={`min-h-screen transition-colors duration-300 flex items-center justify-center ${
+            darkMode 
+                ? 'bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900' 
+                : 'bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50'
+        }`}>
+            <div className="text-center">
+                <div className="w-16 h-16 border-4 border-blue-200 border-t-blue-600 rounded-full animate-spin mx-auto mb-4"></div>
+                <p className={darkMode ? 'text-gray-300' : 'text-gray-600'}>Loading board...</p>
+            </div>
+        </div>
+    );
 
     return (
-        <div className="py-6 px-4 sm:px-6 lg:px-8 h-full flex flex-col">
-            <div className="flex justify-between items-center mb-6">
-                <div className="flex items-center space-x-4">
-                    <h1 className="text-2xl font-bold text-gray-900">Task Board</h1>
-                    
-                    {/* Filter Buttons - Role-based */}
-                    <div className="flex space-x-2">
-                        {user?.role === 'Admin' && (
+        <div className={`min-h-screen transition-colors duration-300 ${
+            darkMode 
+                ? 'bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900' 
+                : 'bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50'
+        }`}>
+            {/* Background decoration */}
+            <div className="absolute inset-0 overflow-hidden">
+                <div className={`absolute -top-40 -right-40 w-80 h-80 rounded-full opacity-20 blur-3xl ${
+                    darkMode 
+                        ? 'bg-gradient-to-br from-blue-800 to-purple-800' 
+                        : 'bg-gradient-to-br from-blue-200 to-purple-200'
+                }`}></div>
+                <div className={`absolute -bottom-40 -left-40 w-80 h-80 rounded-full opacity-20 blur-3xl ${
+                    darkMode 
+                        ? 'bg-gradient-to-br from-indigo-800 to-pink-800' 
+                        : 'bg-gradient-to-br from-indigo-200 to-pink-200'
+                }`}></div>
+            </div>
+
+            <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+                {/* Header */}
+                <div className={`p-8 mb-8 rounded-3xl shadow-2xl border transition-colors duration-300 ${
+                    darkMode 
+                        ? 'bg-gray-800/90 backdrop-blur-xl border-gray-700' 
+                        : 'bg-white/80 backdrop-blur-xl border-white/20'
+                }`}>
+                    <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between space-y-6 lg:space-y-0">
+                        <div className="flex-1">
+                            <div className="flex items-center space-x-4 mb-4 lg:mb-0">
+                                <div className={`w-16 h-16 rounded-2xl p-1 ${
+                                    darkMode 
+                                        ? 'bg-gradient-to-br from-blue-700 to-purple-700' 
+                                        : 'bg-gradient-to-br from-blue-600 to-purple-600'
+                                }`}>
+                                    <div className={`w-full h-full rounded-xl flex items-center justify-center ${
+                                        darkMode ? 'bg-gray-800' : 'bg-white'
+                                    }`}>
+                                        <BarChart3 className={`w-8 h-8 ${darkMode ? 'text-blue-400' : 'text-blue-600'}`} />
+                                    </div>
+                                </div>
+                                <div>
+                                    <h1 className={`text-3xl font-bold ${darkMode ? 'text-white' : 'text-gray-900'}`}>
+                                        Task Board
+                                    </h1>
+                                    <p className={`mt-1 ${darkMode ? 'text-gray-300' : 'text-gray-600'}`}>
+                                        Manage and track your team's tasks efficiently
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className="flex items-center space-x-3">
+                            {/* Search */}
+                            <div className="relative">
+                                <Search className={`absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 ${
+                                    darkMode ? 'text-gray-400' : 'text-gray-500'
+                                }`} />
+                                <input
+                                    type="text"
+                                    placeholder="Search tasks..."
+                                    value={searchQuery}
+                                    onChange={(e) => setSearchQuery(e.target.value)}
+                                    className={`pl-10 pr-4 py-2.5 rounded-xl border focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all ${
+                                        darkMode 
+                                            ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-400' 
+                                            : 'bg-white border-gray-200 text-gray-900 placeholder-gray-500'
+                                    }`}
+                                />
+                            </div>
+
+                            {/* Filter Buttons */}
+                            <div className="flex space-x-2">
+                                {user?.role === 'Admin' && (
+                                    <button
+                                        onClick={() => setFilter('all')}
+                                        className={`inline-flex items-center px-3 py-2 border text-sm font-medium rounded-xl transition-all ${
+                                            filter === 'all' 
+                                                ? 'bg-blue-600 text-white border-blue-600' 
+                                                : darkMode 
+                                                    ? 'bg-gray-700 text-gray-200 border-gray-600 hover:bg-gray-600' 
+                                                    : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
+                                        }`}
+                                    >
+                                        <Users className="w-4 h-4 mr-1" />
+                                        All Tasks
+                                    </button>
+                                )}
+                                
+                                {(user?.role === 'Admin' || user?.role === 'Project Manager') && (
+                                    <button
+                                        onClick={() => setFilter('unassigned')}
+                                        className={`inline-flex items-center px-3 py-2 border text-sm font-medium rounded-xl transition-all ${
+                                            filter === 'unassigned' 
+                                                ? 'bg-orange-600 text-white border-orange-600' 
+                                                : darkMode 
+                                                    ? 'bg-gray-700 text-gray-200 border-gray-600 hover:bg-gray-600' 
+                                                    : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
+                                        }`}
+                                    >
+                                        <Filter className="w-4 h-4 mr-1" />
+                                        Unassigned
+                                    </button>
+                                )}
+                                
+                                <button
+                                    onClick={() => setFilter('my')}
+                                    className={`inline-flex items-center px-3 py-2 border text-sm font-medium rounded-xl transition-all ${
+                                        filter === 'my' 
+                                            ? 'bg-green-600 text-white border-green-600' 
+                                            : darkMode 
+                                                ? 'bg-gray-700 text-gray-200 border-gray-600 hover:bg-gray-600' 
+                                                : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
+                                        }`}
+                                >
+                                    <User className="w-4 h-4 mr-1" />
+                                    {user?.role === 'Admin' ? 'My Tasks' : 'My Tasks'}
+                                </button>
+                            </div>
+
+                            {/* Dark Mode Toggle */}
                             <button
-                                onClick={() => setFilter('all')}
-                                className={`inline-flex items-center px-3 py-1 border text-sm font-medium rounded-md ${
-                                    filter === 'all' 
-                                        ? 'bg-blue-600 text-white border-blue-600' 
-                                        : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
+                                onClick={toggleDarkMode}
+                                className={`p-3 rounded-xl transition-colors ${
+                                    darkMode 
+                                        ? 'hover:bg-gray-700 text-yellow-400' 
+                                        : 'hover:bg-gray-100 text-gray-600'
                                 }`}
                             >
-                                <Users className="h-4 w-4 mr-1" />
-                                All Tasks
+                                {darkMode ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
                             </button>
-                        )}
-                        
-                        {(user?.role === 'Admin' || user?.role === 'Project Manager') && (
-                            <button
-                                onClick={() => setFilter('unassigned')}
-                                className={`inline-flex items-center px-3 py-1 border text-sm font-medium rounded-md ${
-                                    filter === 'unassigned' 
-                                        ? 'bg-blue-600 text-white border-blue-600' 
-                                        : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
-                                }`}
-                            >
-                                <Filter className="h-4 w-4 mr-1" />
-                                Unassigned
-                            </button>
-                        )}
-                        
-                        <button
-                            onClick={() => setFilter('my')}
-                            className={`inline-flex items-center px-3 py-1 border text-sm font-medium rounded-md ${
-                                filter === 'my' 
-                                    ? 'bg-blue-600 text-white border-blue-600' 
-                                    : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
-                            }`}
-                        >
-                            <User className="h-4 w-4 mr-1" />
-                            {user?.role === 'Admin' ? 'My Tasks' : 'My Tasks'}
-                        </button>
+
+                            {/* New Task Button */}
+                            {(user?.role === 'Admin' || user?.role === 'Project Manager') && (
+                                <button
+                                    onClick={() => handleOpenModal()}
+                                    className="inline-flex items-center px-4 py-2 border border-transparent shadow-lg text-sm font-medium rounded-xl text-white bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                                >
+                                    <Plus className="-ml-1 mr-2 h-5 w-5" aria-hidden="true" />
+                                    New Task
+                                </button>
+                            )}
+                        </div>
                     </div>
                 </div>
-                
-                {(user?.role === 'Admin' || user?.role === 'Project Manager') && (
-                <button
-                    onClick={() => handleOpenModal()}
-                    className="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-                >
-                    <Plus className="-ml-1 mr-2 h-5 w-5" aria-hidden="true" />
-                    New Task
-                </button>
-            )}
-            </div>
-            
-            {/* Task Count Summary */}
-            <div className="mb-4 text-sm text-gray-600">
-                Showing: <span className="font-medium">
-                    {filter === 'my' ? 'My Tasks' : filter === 'unassigned' ? 'Unassigned Tasks' : 
-                     user?.role === 'Admin' ? 'All Tasks' : 'My Tasks'}
-                </span> ({filteredTasks.length} tasks)
-            </div>
 
-            <div className="flex-1 overflow-x-auto overflow-y-hidden">
-                <div className="flex h-full space-x-4 pb-4 items-start min-w-[1200px]">
-                    <DndContext
-                        sensors={sensors}
-                        collisionDetection={closestCorners}
-                        onDragEnd={handleDragEnd}
-                    >
-                        {COLUMNS.map((col) => (
-                            <BoardColumn
-                                key={col}
-                                title={col}
-                                tasks={getTasksByStatus(col)}
-                                onTaskClick={handleOpenDetailsModal}
-                                onStatusChange={handleQuickStatusChange}
-                            />
-                        ))}
-                    </DndContext>
+                {/* Stats Cards */}
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+                    {[
+                        { label: 'Total Tasks', value: taskStats.total, icon: BarChart3, color: 'from-blue-500 to-blue-600' },
+                        { label: 'In Progress', value: taskStats.inProgress, icon: Clock, color: 'from-orange-500 to-orange-600' },
+                        { label: 'Completed', value: taskStats.completed, icon: CheckCircle, color: 'from-green-500 to-green-600' },
+                        { label: 'Blocked', value: taskStats.blocked, icon: TrendingUp, color: 'from-red-500 to-red-600' }
+                    ].map((stat, index) => (
+                        <div key={index} className={`p-6 rounded-2xl shadow-xl border transition-colors duration-300 ${
+                            darkMode 
+                                ? 'bg-gray-800/90 backdrop-blur-xl border-gray-700' 
+                                : 'bg-white/80 backdrop-blur-xl border-white/20'
+                        }`}>
+                            <div className={`w-12 h-12 bg-gradient-to-br ${stat.color} rounded-xl flex items-center justify-center mb-4`}>
+                                <stat.icon className="w-6 h-6 text-white" />
+                            </div>
+                            <div className={`text-2xl font-bold ${darkMode ? 'text-white' : 'text-gray-900'}`}>
+                                {stat.value}
+                            </div>
+                            <div className={`text-sm mt-1 ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+                                {stat.label}
+                            </div>
+                        </div>
+                    ))}
                 </div>
+
+                {/* Task Count Summary */}
+                <div className={`mb-6 p-4 rounded-2xl border ${
+                    darkMode 
+                        ? 'bg-gray-800/50 border-gray-700 text-gray-300' 
+                        : 'bg-blue-50 border-blue-200 text-gray-700'
+                }`}>
+                    <div className="flex items-center justify-between">
+                        <div className="flex items-center space-x-2">
+                            <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${
+                                filter === 'my' 
+                                    ? 'bg-green-600 text-white' 
+                                    : filter === 'unassigned'
+                                    ? 'bg-orange-600 text-white'
+                                    : filter === 'all'
+                                    ? 'bg-blue-600 text-white'
+                                    : 'bg-gray-600 text-white'
+                            }`}>
+                                {filter === 'my' && <User className="w-4 h-4 mr-1" />}
+                                {filter === 'unassigned' && <Filter className="w-4 h-4 mr-1" />}
+                                {filter === 'all' && <Users className="w-4 h-4 mr-1" />}
+                                {filter === 'my' ? 'My Tasks' : filter === 'unassigned' ? 'Unassigned Tasks' : 
+                                 user?.role === 'Admin' ? 'All Tasks' : 'My Tasks'}
+                            </span>
+                            <span className={`ml-2 ${darkMode ? 'text-gray-300' : 'text-gray-600'}`}>
+                                ({searchQuery.trim() ? 
+                                    tasks.filter(task => 
+                                        task.title?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                                        task.description?.toLowerCase().includes(searchQuery.toLowerCase())
+                                    ).length 
+                                    : filteredTasks.length} tasks)
+                            </span>
+                        </div>
+                        {searchQuery && (
+                            <button
+                                onClick={() => setSearchQuery('')}
+                                className={`text-sm ${darkMode ? 'text-gray-400 hover:text-gray-200' : 'text-gray-500 hover:text-gray-700'}`}
+                            >
+                                Clear search
+                            </button>
+                        )}
+                    </div>
+                </div>
+
+                {/* Task Board */}
+                <div className={`flex-1 overflow-x-auto overflow-y-hidden rounded-3xl shadow-2xl border transition-colors duration-300 ${
+                    darkMode 
+                        ? 'bg-gray-800/90 backdrop-blur-xl border-gray-700' 
+                        : 'bg-white/80 backdrop-blur-xl border-white/20'
+                }`}>
+                    <div className="flex h-full space-x-4 pb-4 items-start min-w-[1200px]">
+                        <DndContext
+                            sensors={sensors}
+                            collisionDetection={closestCorners}
+                            onDragEnd={handleDragEnd}
+                        >
+                            {COLUMNS.map((col) => (
+                                <BoardColumn
+                                    key={col}
+                                    title={col}
+                                    tasks={getTasksByStatus(col)}
+                                    onTaskClick={handleOpenDetailsModal}
+                                    onStatusChange={handleQuickStatusChange}
+                                    darkMode={darkMode}
+                                    searchQuery={searchQuery}
+                                />
+                            ))}
+                        </DndContext>
+                    </div>
+                </div>
+
+                {/* Modals */}
+                {isModalOpen && (
+                    <TaskModal
+                        task={selectedTask}
+                        onClose={handleCloseModal}
+                        allTasks={tasks}
+                        darkMode={darkMode}
+                    />
+                )}
+
+                {isDetailsModalOpen && (
+                    <TaskDetailsModal
+                        task={selectedTask}
+                        onClose={handleCloseDetailsModal}
+                        onStatusChange={handleQuickStatusChange}
+                        onTaskUpdate={fetchTasks}
+                        darkMode={darkMode}
+                    />
+                )}
             </div>
-
-            {isModalOpen && (
-                <TaskModal
-                    task={selectedTask}
-                    onClose={handleCloseModal}
-                    allTasks={tasks}
-                />
-            )}
-
-            {isDetailsModalOpen && (
-                <TaskDetailsModal
-                    task={selectedTask}
-                    onClose={handleCloseDetailsModal}
-                    onStatusChange={handleQuickStatusChange}
-                    onTaskUpdate={fetchTasks}
-                />
-            )}
         </div>
     );
 };
