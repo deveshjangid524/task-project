@@ -142,8 +142,9 @@ const uploadFile = async (req, res) => {
             return res.status(400).json({ message: 'No file uploaded' });
         }
 
-        // Create file URL
-        const fileUrl = `${req.protocol}://${req.get('host')}/uploads/${req.file.filename}`;
+        // Create file URL - use environment variable or construct from request
+        const baseUrl = process.env.BASE_URL || `${req.protocol}://${req.get('host')}`;
+        const fileUrl = `${baseUrl}/uploads/${req.file.filename}`;
         
         const fileInfo = {
             fileName: req.file.originalname,

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import api from '../services/api';
+import api, { API_BASE_URL } from '../services/api';
 import { showNotification } from './NotificationSystem';
 import { FileText, Link, Plus, X, Download, Eye, Trash2, Upload } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
@@ -637,19 +637,22 @@ const NotesSection = () => {
                                                 
                                                 if (fileUrl) {
                                                     try {
+                                                        let fullUrl;
+                                                        
                                                         // Handle local blob URLs differently
                                                         if (fileUrl.startsWith('blob:')) {
                                                             console.log('Opening local blob URL');
-                                                            window.open(fileUrl, '_blank', 'noopener,noreferrer');
+                                                            fullUrl = fileUrl;
+                                                        } else if (fileUrl.startsWith('http')) {
+                                                            // Already a full URL (from backend)
+                                                            fullUrl = fileUrl;
                                                         } else {
-                                                            // Construct full URL if needed
-                                                            const fullUrl = fileUrl.startsWith('http') 
-                                                                ? fileUrl 
-                                                                : `${window.location.origin}${fileUrl.startsWith('/') ? '' : '/'}${fileUrl}`;
-                                                            
-                                                            console.log('Full URL:', fullUrl);
-                                                            window.open(fullUrl, '_blank', 'noopener,noreferrer');
+                                                            // Relative path - construct full URL using backend base URL
+                                                            fullUrl = `${API_BASE_URL}${fileUrl.startsWith('/') ? '' : '/'}${fileUrl}`;
                                                         }
+                                                        
+                                                        console.log('Full URL for viewing:', fullUrl);
+                                                        window.open(fullUrl, '_blank', 'noopener,noreferrer');
                                                         showNotification('success', 'Opening file...', 'Success');
                                                     } catch (error) {
                                                         console.error('Error opening file:', error);
@@ -677,33 +680,30 @@ const NotesSection = () => {
                                                 
                                                 if (fileUrl) {
                                                     try {
+                                                        let fullUrl;
+                                                        
                                                         // Handle local blob URLs differently
                                                         if (fileUrl.startsWith('blob:')) {
                                                             console.log('Downloading local blob URL');
-                                                            const link = document.createElement('a');
-                                                            link.href = fileUrl;
-                                                            link.download = note.fileName || 'document';
-                                                            link.target = '_blank';
-                                                            document.body.appendChild(link);
-                                                            link.click();
-                                                            document.body.removeChild(link);
+                                                            fullUrl = fileUrl;
+                                                        } else if (fileUrl.startsWith('http')) {
+                                                            // Already a full URL (from backend)
+                                                            fullUrl = fileUrl;
                                                         } else {
-                                                            // Construct full URL if needed
-                                                            const fullUrl = fileUrl.startsWith('http') 
-                                                                ? fileUrl 
-                                                                : `${window.location.origin}${fileUrl.startsWith('/') ? '' : '/'}${fileUrl}`;
-                                                            
-                                                            console.log('Full URL:', fullUrl);
-                                                            
-                                                            // Create download link
-                                                            const link = document.createElement('a');
-                                                            link.href = fullUrl;
-                                                            link.download = note.fileName || 'document';
-                                                            link.target = '_blank';
-                                                            document.body.appendChild(link);
-                                                            link.click();
-                                                            document.body.removeChild(link);
+                                                            // Relative path - construct full URL using backend base URL
+                                                            fullUrl = `${API_BASE_URL}${fileUrl.startsWith('/') ? '' : '/'}${fileUrl}`;
                                                         }
+                                                        
+                                                        console.log('Full URL for download:', fullUrl);
+                                                        
+                                                        // Create download link
+                                                        const link = document.createElement('a');
+                                                        link.href = fullUrl;
+                                                        link.download = note.fileName || 'document';
+                                                        link.target = '_blank';
+                                                        document.body.appendChild(link);
+                                                        link.click();
+                                                        document.body.removeChild(link);
                                                         showNotification('success', 'Download started...', 'Success');
                                                     } catch (error) {
                                                         console.error('Error downloading file:', error);
