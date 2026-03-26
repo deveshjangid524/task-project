@@ -205,6 +205,28 @@ const updateTask = async (req, res) => {
         if (updates.timeEstimates) task.timeEstimates = { ...task.timeEstimates, ...updates.timeEstimates };
         if (updates.scheduling) task.scheduling = { ...task.scheduling, ...updates.scheduling };
         if (updates.attachmentLinks) task.attachmentLinks = updates.attachmentLinks;
+        
+        // Handle completion data
+        if (updates.completionComments !== undefined || updates.completionDocuments !== undefined) {
+            task.completionData = task.completionData || {};
+            
+            if (updates.completionComments !== undefined) {
+                task.completionData.comments = updates.completionComments;
+                historyDetails.push('Completion comments added');
+            }
+            
+            if (updates.completionDocuments !== undefined) {
+                task.completionData.documents = updates.completionDocuments;
+                historyDetails.push(`${updates.completionDocuments.length} completion document(s) uploaded`);
+            }
+            
+            // Set completion metadata when status is being set to Completed
+            if (updates.status === 'Completed' && task.status !== 'Completed') {
+                task.completionData.completedAt = new Date();
+                task.completionData.completedBy = req.user._id;
+                historyDetails.push('Task completed');
+            }
+        }
 
         if (historyDetails.length > 0) {
             task.historyLogs.push({

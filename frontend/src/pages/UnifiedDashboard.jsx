@@ -26,10 +26,40 @@ import {
 
 const COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#06b6d4', '#84cc16'];
 
+// Add CSS for animations
+const fadeInAnimation = `
+  @keyframes fadeIn {
+    from {
+      opacity: 0;
+      transform: translateY(-10px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+  
+  .animate-fadeIn {
+    animation: fadeIn 0.3s ease-out;
+  }
+`;
+
 const UnifiedDashboard = () => {
     const { user } = useAuth();
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
+
+    // Inject CSS animations
+    useEffect(() => {
+        const styleSheet = document.createElement('style');
+        styleSheet.type = 'text/css';
+        styleSheet.innerText = fadeInAnimation;
+        document.head.appendChild(styleSheet);
+        
+        return () => {
+            document.head.removeChild(styleSheet);
+        };
+    }, []);
 
     // Team analytics (from Dashboard)
     const [teamStats, setTeamStats] = useState({
@@ -1208,33 +1238,138 @@ const UnifiedDashboard = () => {
 
                                 {/* Quick Actions */}
                                 <div className="bg-white p-6 rounded-lg shadow border border-gray-100">
-                                    <h3 className="text-lg font-medium text-gray-900 mb-4">Quick Actions</h3>
-                                    <div className="space-y-4">
-                                        <div className="grid grid-cols-1 gap-4">
-                                            {myTasks
-                                                .filter(task => task.status === 'In Progress')
-                                                .slice(0, 3)
-                                                .map(task => (
-                                                    <div key={task._id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                                                        <div className="flex-1">
-                                                            <p className="text-sm font-medium text-gray-900">{task.title}</p>
-                                                            <p className="text-xs text-gray-500">{task.priority} Priority</p>
-                                                        </div>
-                                                        <button
-                                                            onClick={() => updateTaskStatus(task._id, 'Completed')}
-                                                            className="ml-4 inline-flex items-center px-3 py-1 border border-transparent text-xs font-medium rounded-md text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
-                                                        >
-                                                            Complete
-                                                        </button>
-                                                    </div>
-                                                ))}
-                                            {myTasks.filter(task => task.status === 'In Progress').length === 0 && (
-                                                <div className="text-center py-8 text-gray-500">
-                                                    <p className="text-sm">No tasks currently in progress.</p>
-                                                    <p className="text-xs mt-1">Tasks marked as "In Progress" will appear here for quick completion.</p>
-                                                </div>
-                                            )}
+                                    <div className="flex items-center justify-between mb-6">
+                                        <h3 className="text-lg font-medium text-gray-900">Quick Actions</h3>
+                                        <div className="flex items-center space-x-2">
+                                            <Activity className="h-4 w-4 text-blue-500" />
+                                            <span className="text-sm text-gray-500">
+                                                {myTasks.filter(task => task.status === 'In Progress').length} Active
+                                            </span>
                                         </div>
+                                    </div>
+                                    
+                                    {/* Progress Overview */}
+                                    <div className="mb-6 p-4 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg border border-blue-200">
+                                        <div className="flex items-center justify-between mb-2">
+                                            <span className="text-sm font-medium text-gray-700">Today's Progress</span>
+                                            <span className="text-xs text-gray-500">
+                                                {Math.round((personalStats.completed / Math.max(personalStats.total, 1)) * 100)}%
+                                            </span>
+                                        </div>
+                                        <div className="w-full bg-gray-200 rounded-full h-2">
+                                            <div 
+                                                className="bg-gradient-to-r from-blue-500 to-indigo-500 h-2 rounded-full transition-all duration-300"
+                                                style={{ width: `${Math.round((personalStats.completed / Math.max(personalStats.total, 1)) * 100)}%` }}
+                                            ></div>
+                                        </div>
+                                        <div className="flex justify-between mt-2 text-xs text-gray-600">
+                                            <span>{personalStats.completed} completed</span>
+                                            <span>{personalStats.inProgress} in progress</span>
+                                            <span>{personalStats.todo} pending</span>
+                                        </div>
+                                    </div>
+
+                                    {/* Priority Distribution Chart */}
+                                    {myTasks.filter(task => task.status === 'In Progress').length > 0 && (
+                                        <div className="mb-6">
+                                            <h4 className="text-sm font-medium text-gray-700 mb-3">Priority Distribution</h4>
+                                            <div className="h-32">
+                                                <ResponsiveContainer width="100%" height="100%">
+                                                    <PieChart>
+                                                        <Pie
+                                                            data={[
+                                                                { name: 'High', value: myTasks.filter(t => t.status === 'In Progress' && t.priority === 'High').length, color: '#ef4444' },
+                                                                { name: 'Medium', value: myTasks.filter(t => t.status === 'In Progress' && t.priority === 'Medium').length, color: '#f59e0b' },
+                                                                { name: 'Low', value: myTasks.filter(t => t.status === 'In Progress' && t.priority === 'Low').length, color: '#10b981' }
+                                                            ].filter(item => item.value > 0)}
+                                                            cx="50%"
+                                                            cy="50%"
+                                                            innerRadius={25}
+                                                            outerRadius={40}
+                                                            paddingAngle={2}
+                                                            dataKey="value"
+                                                        >
+                                                            {[
+                                                                { name: 'High', value: myTasks.filter(t => t.status === 'In Progress' && t.priority === 'High').length, color: '#ef4444' },
+                                                                { name: 'Medium', value: myTasks.filter(t => t.status === 'In Progress' && t.priority === 'Medium').length, color: '#f59e0b' },
+                                                                { name: 'Low', value: myTasks.filter(t => t.status === 'In Progress' && t.priority === 'Low').length, color: '#10b981' }
+                                                            ].filter(item => item.value > 0).map((entry, index) => (
+                                                                <Cell key={`cell-${index}`} fill={entry.color} />
+                                                            ))}
+                                                        </Pie>
+                                                        <RechartsTooltip />
+                                                    </PieChart>
+                                                </ResponsiveContainer>
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    <div className="space-y-3 min-h-[200px]">
+                                        {myTasks
+                                            .filter(task => task.status === 'In Progress')
+                                            .slice(0, 3)
+                                            .map((task, index) => (
+                                                <div key={task._id} className="relative overflow-hidden animate-fadeIn">
+                                                    <div className="absolute inset-0 bg-gradient-to-r from-gray-50 to-blue-50 opacity-50"></div>
+                                                    <div className="relative flex items-center justify-between p-4 border border-gray-200 rounded-lg hover:shadow-md transition-all duration-300 hover:scale-[1.02]">
+                                                        <div className="flex items-center space-x-3">
+                                                            <div className="flex-shrink-0">
+                                                                <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
+                                                                    task.priority === 'High' ? 'bg-red-100' :
+                                                                    task.priority === 'Medium' ? 'bg-yellow-100' : 'bg-green-100'
+                                                                }`}>
+                                                                    <Target className={`w-4 h-4 ${
+                                                                        task.priority === 'High' ? 'text-red-600' :
+                                                                        task.priority === 'Medium' ? 'text-yellow-600' : 'text-green-600'
+                                                                    }`} />
+                                                                </div>
+                                                            </div>
+                                                            <div className="flex-1 min-w-0">
+                                                                <p className="text-sm font-medium text-gray-900 truncate">{task.title}</p>
+                                                                <div className="flex items-center space-x-2 mt-1">
+                                                                    <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${
+                                                                        task.priority === 'High' ? 'bg-red-100 text-red-800' :
+                                                                        task.priority === 'Medium' ? 'bg-yellow-100 text-yellow-800' : 
+                                                                        'bg-green-100 text-green-800'
+                                                                    }`}>
+                                                                        {task.priority}
+                                                                    </span>
+                                                                    {task.timeEstimates?.estimatedHours && (
+                                                                        <span className="flex items-center text-xs text-gray-500">
+                                                                            <Clock className="h-3 w-3 mr-1" />
+                                                                            {task.timeEstimates.estimatedHours}h
+                                                                        </span>
+                                                                    )}
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                        <div className="flex items-center space-x-2">
+                                                            <div className="text-right">
+                                                                <div className="text-xs text-gray-500">Task #{index + 1}</div>
+                                                                <div className="text-xs font-medium text-blue-600">Active</div>
+                                                            </div>
+                                                            <button
+                                                                onClick={() => updateTaskStatus(task._id, 'Completed')}
+                                                                className="inline-flex items-center px-3 py-1.5 border border-transparent text-xs font-medium rounded-md text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 transition-all duration-200 hover:scale-105"
+                                                            >
+                                                                <Check className="w-3 h-3 mr-1" />
+                                                                Complete
+                                                            </button>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            ))}
+                                        {myTasks.filter(task => task.status === 'In Progress').length === 0 && (
+                                            <div className="text-center py-12 bg-gray-50 rounded-lg border-2 border-dashed border-gray-300 animate-fadeIn">
+                                                <div className="flex justify-center mb-3">
+                                                    <div className="w-12 h-12 bg-gray-200 rounded-full flex items-center justify-center">
+                                                        <CheckCircle className="w-6 h-6 text-gray-400" />
+                                                    </div>
+                                                </div>
+                                                <p className="text-sm font-medium text-gray-600 mb-1">All caught up!</p>
+                                                <p className="text-xs text-gray-500">No tasks currently in progress. Start a new task to see it here.</p>
+                                            </div>
+                                        )}
                                     </div>
                                 </div>
                             </div>

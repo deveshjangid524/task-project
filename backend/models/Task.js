@@ -24,13 +24,28 @@ const taskSchema = new mongoose.Schema({
         addedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
         addedAt: { type: Date, default: Date.now }
     }],
+    // New fields for completion data
+    completionData: {
+        comments: { type: String },
+        documents: [{
+            filename: { type: String },
+            originalName: { type: String },
+            mimetype: { type: String },
+            size: { type: Number },
+            path: { type: String },
+            uploadedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+            uploadedAt: { type: Date, default: Date.now }
+        }],
+        completedAt: { type: Date },
+        completedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' }
+    },
     historyLogs: [{
         action: { type: String },
         changedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
         timestamp: { type: Date, default: Date.now },
         details: { type: String }
     }],
-    createdBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' }, // Track who created the task
+    createdBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' }, // Track who created task
 }, { timestamps: true });
 
 taskSchema.index({ status: 1, assignedTo: 1 });

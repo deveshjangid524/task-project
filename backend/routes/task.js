@@ -138,4 +138,72 @@ router.post('/:id/attachments', protect, upload.array('attachments', 10), async 
     }
 });
 
+// Add completion documents route
+router.post('/:id/completion-documents', protect, upload.array('documents', 10), async (req, res) => {
+    try {
+        console.log('=== COMPLETION DOCUMENTS UPLOAD START ===');
+        console.log('Task ID:', req.params.id);
+        console.log('User:', req.user._id);
+        console.log('Files:', req.files);
+        console.log('Comments:', req.body.comments);
+        
+        if (!req.files || req.files.length === 0) {
+            return res.status(400).json({ message: 'No files uploaded' });
+        }
+        
+        // Find the task
+        const Task = require('../models/Task');
+        const task = await Task.findById(req.params.id);
+        
+        if (!task) {
+            return res.status(404).json({ message: 'Task not found' });
+        }
+        
+        // Add file information to completion data
+        const completionDocuments = req.files.map(file => ({
+            filename: file.filename,
+            originalName: file.originalname,
+            mimetype: file.mimetype,
+            size: file.size,
+            path: file.path,
+            uploadedBy: req.user._id,
+            uploadedAt: new Date()
+        }));
+        
+        // Update task with completion documents
+        task.completionData = task.completionData || {};
+        task.completionData.documents = completionDocuments;
+        
+        // Add comments if provided
+        if (req.body.comments) {
+            task.completionData.comments = req.body.comments;
+        }
+        
+        // Add to history logs
+        task.historyLogs.push({
+            action: 'Completion Documents Added',
+            changedBy: req.user._id,
+            details: `${completionDocuments.length} completion document(s) uploaded${req.body.comments ? ' with comments' : ''}`,
+            timestamp: new Date()
+        });
+        
+        await task.save();
+        
+        console.log('Completion documents uploaded successfully:', completionDocuments.length);
+        res.status(200).json({
+            message: 'Completion documents uploaded successfully',
+            documents: completionDocuments
+        });
+        
+    } catch (error) {
+        console.error('=== COMPLETION DOCUMENTS UPLOAD ERROR ===');
+        console.error('Error:', error.message);
+        console.error('Stack:', error.stack);
+        res.status(500).json({
+            message: 'Server Error',
+            error: error.message
+        });
+    }
+});
+
 module.exports = router;
