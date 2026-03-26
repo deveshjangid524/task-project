@@ -1172,7 +1172,7 @@ const UnifiedDashboard = () => {
                                         </div>
                                         <div className="ml-4">
                                             <p className="text-sm font-medium text-gray-500">Completion Rate</p>
-                                            <p className="text-2xl font-bold text-gray-900">{personalStats.completionRate}%</p>
+                                            <p className="text-2xl font-bold text-gray-900">{personalStats.completionRate.toFixed(2)}%</p>
                                         </div>
                                     </div>
                                 </div>
@@ -1228,6 +1228,12 @@ const UnifiedDashboard = () => {
                                                         </button>
                                                     </div>
                                                 ))}
+                                            {myTasks.filter(task => task.status === 'In Progress').length === 0 && (
+                                                <div className="text-center py-8 text-gray-500">
+                                                    <p className="text-sm">No tasks currently in progress.</p>
+                                                    <p className="text-xs mt-1">Tasks marked as "In Progress" will appear here for quick completion.</p>
+                                                </div>
+                                            )}
                                         </div>
                                     </div>
                                 </div>
