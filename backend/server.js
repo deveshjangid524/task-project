@@ -75,8 +75,29 @@ app.use('/api/chat', require('./routes/chat'));
 app.use('/api/notes', require('./routes/notes'));
 app.use('/api/ai-optimizer', require('./routes/aiOptimizer'));
 
-// Serve uploaded files
-app.use('/uploads', express.static('uploads'));
+// Serve uploaded files with authentication
+app.use('/uploads', require('./middleware/authMiddleware').protect, async (req, res, next) => {
+    // Check if download parameter is present
+    if (req.query.download === '1') {
+        try {
+            // Try to get the original filename from the database
+            const Note = require('./models/Note');
+            const storedFilename = req.path.split('/').pop();
+            
+            const note = await Note.findOne({ 
+                fileUrl: { $regex: storedFilename } 
+            });
+            
+            const filename = note ? note.fileName : storedFilename;
+            res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+        } catch (error) {
+            // Fallback to stored filename if database lookup fails
+            const filename = req.path.split('/').pop();
+            res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+        }
+    }
+    next();
+}, express.static('uploads'));
 
 // Express Error Middleware
 app.use((err, req, res, next) => {

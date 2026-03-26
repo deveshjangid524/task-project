@@ -670,7 +670,7 @@ const NotesSection = () => {
                                         </button>
                                         
                                         <button
-                                            onClick={() => {
+                                            onClick={async () => {
                                                 console.log('Download button clicked for note:', note);
                                                 console.log('fileUrl:', note.fileUrl);
                                                 console.log('content:', note.content);
@@ -686,24 +686,49 @@ const NotesSection = () => {
                                                         if (fileUrl.startsWith('blob:')) {
                                                             console.log('Downloading local blob URL');
                                                             fullUrl = fileUrl;
-                                                        } else if (fileUrl.startsWith('http')) {
-                                                            // Already a full URL (from backend)
-                                                            fullUrl = fileUrl;
+                                                            
+                                                            // Create download link for blob URL
+                                                            const link = document.createElement('a');
+                                                            link.href = fullUrl;
+                                                            link.download = note.fileName || 'document';
+                                                            link.target = '_blank';
+                                                            document.body.appendChild(link);
+                                                            link.click();
+                                                            document.body.removeChild(link);
                                                         } else {
-                                                            // Relative path - construct full URL using backend base URL
-                                                            fullUrl = `${API_BASE_URL}${fileUrl.startsWith('/') ? '' : '/'}${fileUrl}`;
+                                                            // Handle file URLs with authentication
+                                                            if (fileUrl.startsWith('http')) {
+                                                                // Already a full URL (from backend)
+                                                                fullUrl = fileUrl;
+                                                            } else {
+                                                                // Relative path - construct full URL using backend base URL
+                                                                fullUrl = `${API_BASE_URL}${fileUrl.startsWith('/') ? '' : '/'}${fileUrl}`;
+                                                            }
+                                                            
+                                                            console.log('Full URL for download:', fullUrl);
+                                                            
+                                                            // Use authenticated API to fetch the file
+                                                            const response = await api.get(fullUrl, {
+                                                                responseType: 'blob'
+                                                            });
+                                                            
+                                                            // Create blob from response
+                                                            const blob = new Blob([response.data]);
+                                                            const blobUrl = window.URL.createObjectURL(blob);
+                                                            
+                                                            // Create download link
+                                                            const link = document.createElement('a');
+                                                            link.href = blobUrl;
+                                                            link.download = note.fileName || 'document';
+                                                            link.target = '_blank';
+                                                            document.body.appendChild(link);
+                                                            link.click();
+                                                            document.body.removeChild(link);
+                                                            
+                                                            // Clean up blob URL
+                                                            window.URL.revokeObjectURL(blobUrl);
                                                         }
                                                         
-                                                        console.log('Full URL for download:', fullUrl);
-                                                        
-                                                        // Create download link
-                                                        const link = document.createElement('a');
-                                                        link.href = fullUrl;
-                                                        link.download = note.fileName || 'document';
-                                                        link.target = '_blank';
-                                                        document.body.appendChild(link);
-                                                        link.click();
-                                                        document.body.removeChild(link);
                                                         showNotification('success', 'Download started...', 'Success');
                                                     } catch (error) {
                                                         console.error('Error downloading file:', error);
