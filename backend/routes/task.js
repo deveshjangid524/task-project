@@ -206,4 +206,33 @@ router.post('/:id/completion-documents', protect, upload.array('documents', 10),
     }
 });
 
+// Add file download route
+router.get('/download/:filename', protect, async (req, res) => {
+    try {
+        const filename = req.params.filename;
+        const path = require('path');
+        const fs = require('fs');
+        
+        // Construct the file path
+        const filePath = path.join(process.cwd(), 'uploads', filename);
+        
+        // Check if file exists
+        if (!fs.existsSync(filePath)) {
+            return res.status(404).json({ message: 'File not found' });
+        }
+        
+        // Send the file
+        res.download(filePath, (err) => {
+            if (err) {
+                console.error('Error downloading file:', err);
+                res.status(500).json({ message: 'Error downloading file' });
+            }
+        });
+        
+    } catch (error) {
+        console.error('Download error:', error);
+        res.status(500).json({ message: 'Server Error' });
+    }
+});
+
 module.exports = router;

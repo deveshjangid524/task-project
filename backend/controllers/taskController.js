@@ -104,7 +104,8 @@ const getTasks = async (req, res) => {
         const tasks = await Task.find(query)
             .populate('assignedTo', 'name email')
             .populate('createdBy', 'name email role')
-            .populate('dependsOn', 'title status');
+            .populate('dependsOn', 'title status')
+            .populate('completionData.completedBy', 'name email');
 
         res.json(tasks);
     } catch (error) {
@@ -120,8 +121,10 @@ const getTaskById = async (req, res) => {
     try {
         const task = await Task.findById(req.params.id)
             .populate('assignedTo', 'name email')
+            .populate('createdBy', 'name email role')
             .populate('dependsOn', 'title status')
-            .populate('historyLogs.changedBy', 'name');
+            .populate('historyLogs.changedBy', 'name')
+            .populate('completionData.completedBy', 'name email');
 
         if (task) {
             res.json(task);

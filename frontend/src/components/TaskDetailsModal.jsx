@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { X, Edit, MoreVertical, Calendar, Clock, User, Users, FileText, ExternalLink, CheckCircle, AlertCircle, Play, Eye, UserMinus } from 'lucide-react';
+import { X, Edit, MoreVertical, Calendar, Clock, User, Users, FileText, ExternalLink, CheckCircle, AlertCircle, Play, Eye, UserMinus, Download, MessageSquare, Paperclip } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import TaskModal from './TaskModal';
 import api from '../services/api';
@@ -270,6 +270,114 @@ const TaskDetailsModal = ({ task, onClose, onStatusChange, onTaskUpdate }) => {
                                             {task.description || 'No description provided'}
                                         </p>
                                     </div>
+
+                                    {/* Completion Data - Only show for completed tasks */}
+                                    {task.status === 'Completed' && (
+                                        <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+                                            <h4 className="text-sm font-medium text-gray-900 mb-3 flex items-center text-green-800">
+                                                <CheckCircle className="w-4 h-4 mr-2" />
+                                                Completion Information
+                                            </h4>
+                                            
+                                            {/* Completion Comments */}
+                                            {(task.completionData?.comments || task.completionData?.comments === '') && (
+                                                <div className="mb-4">
+                                                    <h5 className="text-xs font-medium text-gray-700 mb-2 flex items-center">
+                                                        <MessageSquare className="w-3 h-3 mr-1" />
+                                                        Completion Comments
+                                                    </h5>
+                                                    <div className="bg-white border border-gray-200 rounded-md p-3">
+                                                        <p className="text-sm text-gray-700 whitespace-pre-wrap">
+                                                            {task.completionData.comments || 'No comments provided'}
+                                                        </p>
+                                                    </div>
+                                                </div>
+                                            )}
+                                            
+                                            {/* Completion Documents */}
+                                            {task.completionData?.documents && task.completionData.documents.length > 0 && (
+                                                <div>
+                                                    <h5 className="text-xs font-medium text-gray-700 mb-2 flex items-center">
+                                                        <Paperclip className="w-3 h-3 mr-1" />
+                                                        Completion Documents ({task.completionData.documents.length})
+                                                    </h5>
+                                                    <div className="space-y-2">
+                                                        {task.completionData.documents.map((doc, index) => (
+                                                            <div key={index} className="flex items-center justify-between bg-white border border-gray-200 rounded-md p-2">
+                                                                <div className="flex items-center flex-1 min-w-0">
+                                                                    <div className="w-8 h-8 bg-blue-100 rounded flex items-center justify-center mr-3 flex-shrink-0">
+                                                                        <Paperclip className="w-4 h-4 text-blue-600" />
+                                                                    </div>
+                                                                    <div className="min-w-0 flex-1">
+                                                                        <p className="text-sm font-medium text-gray-900 truncate">
+                                                                            {doc.originalName || doc.filename}
+                                                                        </p>
+                                                                        <p className="text-xs text-gray-500">
+                                                                            {(doc.size / 1024 / 1024).toFixed(2)} MB • {new Date(doc.uploadedAt).toLocaleDateString()}
+                                                                        </p>
+                                                                    </div>
+                                                                </div>
+                                                                <button
+                                                                    onClick={() => {
+                                                                        // Create download link for file
+                                                                        const link = document.createElement('a');
+                                                                        link.href = `/api/tasks/download/${doc.filename}`;
+                                                                        link.download = doc.originalName || doc.filename;
+                                                                        document.body.appendChild(link);
+                                                                        link.click();
+                                                                        document.body.removeChild(link);
+                                                                    }}
+                                                                    className="ml-2 p-1.5 text-blue-600 hover:text-blue-800 hover:bg-blue-50 rounded transition-colors"
+                                                                    title="Download file"
+                                                                >
+                                                                    <Download className="w-4 h-4" />
+                                                                </button>
+                                                            </div>
+                                                        ))}
+                                                    </div>
+                                                </div>
+                                            )}
+                                            
+                                            {/* Show message if no completion data */}
+                                            {!task.completionData && (
+                                                <div className="text-center py-4">
+                                                    <p className="text-sm text-gray-500 italic">
+                                                        No completion data available for this task.
+                                                    </p>
+                                                </div>
+                                            )}
+                                            
+                                            {/* Show message if completion data exists but no comments or documents */}
+                                            {task.completionData && !task.completionData.comments && (!task.completionData.documents || task.completionData.documents.length === 0) && (
+                                                <div className="text-center py-4">
+                                                    <p className="text-sm text-gray-500 italic">
+                                                        Task was completed without additional comments or documents.
+                                                    </p>
+                                                </div>
+                                            )}
+                                            
+                                            {/* Completion Metadata */}
+                                            {task.completionData && (
+                                                <div className="mt-3 pt-3 border-t border-green-200">
+                                                    <div className="flex items-center justify-between text-xs text-gray-600">
+                                                        <div>
+                                                            Completed by: <span className="font-medium">
+                                                                {typeof task.completionData.completedBy === 'string' 
+                                                                    ? task.completionData.completedBy 
+                                                                    : task.completionData.completedBy?.name || 'Unknown'}
+                                                            </span>
+                                                        </div>
+                                                        <div>
+                                                            {task.completionData.completedAt && 
+                                                                new Date(task.completionData.completedAt).toLocaleDateString() + ' ' + 
+                                                                new Date(task.completionData.completedAt).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})
+                                                            }
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            )}
+                                        </div>
+                                    )}
 
                                     {/* Attachment Links */}
                                     {task.attachmentLinks && task.attachmentLinks.length > 0 && (

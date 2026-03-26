@@ -65,10 +65,6 @@ const UnifiedDashboard = () => {
     const [teamStats, setTeamStats] = useState({
         totalTasks: 0,
         completedTasks: 0,
-        blockedTasks: 0,
-        overdueTasks: [],
-        completionRate: 0,
-        workload: []
     });
 
     // Personal analytics (from PersonalDashboard)
@@ -82,17 +78,46 @@ const UnifiedDashboard = () => {
     });
 
     const [myTasks, setMyTasks] = useState([]);
-    const [activeView, setActiveView] = useState('overview'); // overview, personal, team
     const [lastUpdated, setLastUpdated] = useState(new Date());
-    const [refreshing, setRefreshing] = useState(false);
+    
+    // Track completed tasks to prevent duplicate rewards (same as TaskBoard)
+    const [completedTasks, setCompletedTasks] = useState(new Set());
+
+    // Safe reward function (same as TaskBoard)
+    const addRewardsSafely = (taskId, points) => {
+        // Check if this task was already rewarded
+        if (completedTasks.has(taskId)) {
+            console.log(`Task ${taskId} already rewarded, skipping`);
+            return;
+        }
+        
+        // Mark task as rewarded
+        setCompletedTasks(prev => new Set([...prev, taskId]));
+        
+        // Add rewards with proper error handling
+        if (window.addRewards) {
+            try {
+                window.addRewards(points);
+            } catch (error) {
+                console.error('Error adding rewards:', error);
+                // Remove from completed set on error to allow retry
+                setCompletedTasks(prev => {
+                    const newSet = new Set(prev);
+                    newSet.delete(taskId);
+                    return newSet;
+                });
+            }
+        }
+    };
+
+    // Track task completion dialog state
     const [completionDialog, setCompletionDialog] = useState({ isOpen: false, task: null });
+    const [taskCompletionData, setTaskCompletionData] = useState({ comments: '', documents: [] });
+
+    const [activeView, setActiveView] = useState('overview'); // overview, personal, team
+    const [refreshing, setRefreshing] = useState(false);
     const [recentCompletions, setRecentCompletions] = useState([]);
     const [teamMemberTasks, setTeamMemberTasks] = useState([]);
-    const [taskCompletionData, setTaskCompletionData] = useState({
-        comments: '',
-        documents: []
-    });
-
     // AI Optimization states
     const [aiOptimizing, setAiOptimizing] = useState(false);
     const [aiResults, setAiResults] = useState(null);
@@ -507,19 +532,12 @@ const UnifiedDashboard = () => {
             if (newStatus === 'Completed') {
                 const task = updatedTasks.find(t => t._id === taskId);
 
-                // Add rewards for completing task
+                // Add rewards for completing task (using safe reward system)
+                addRewardsSafely(taskId, 100);
+                
+                // Show appropriate notification
                 if (window.addRewards) {
-                    try {
-                        const rewardAdded = window.addRewards(100, taskId);
-                        if (rewardAdded) {
-                            showNotification('success', `🎉 Task "${task.title}" completed! +100 reward points earned!`, 'Task Completed & Rewarded!');
-                        } else {
-                            showNotification('success', `Task "${task.title}" completed! (Already rewarded)`, 'Task Completed');
-                        }
-                    } catch (error) {
-                        console.error('Error adding rewards:', error);
-                        showNotification('success', `Task "${task.title}" completed successfully!`, 'Task Completed');
-                    }
+                    showNotification('success', `🎉 Task "${task.title}" completed! +100 reward points earned!`, 'Task Completed & Rewarded!');
                 } else {
                     let message = `Task "${task.title}" completed successfully!`;
                     if (taskCompletionData.documents.length > 0) {
