@@ -18,6 +18,7 @@ const PORT = process.env.PORT || 5000;
 app.use(cors({
     origin: [
         "http://localhost:3000",
+        "http://localhost:3001",
         "https://task-project-36nd.onrender.com",
         "https://task-project-psi-six.vercel.app",
         "https://task-project-git-main-deveshjangid524s-projects.vercel.app"
@@ -74,6 +75,8 @@ app.use('/api/analytics', require('./routes/analytics'));
 app.use('/api/chat', require('./routes/chat'));
 app.use('/api/notes', require('./routes/notes'));
 app.use('/api/ai-optimizer', require('./routes/aiOptimizer'));
+app.use('/api/assessments', require('./routes/assessment'));
+app.use('/api/library', require('./routes/library'));
 
 // Serve uploaded files with authentication
 app.use('/uploads', require('./middleware/authMiddleware').protect, async (req, res, next) => {

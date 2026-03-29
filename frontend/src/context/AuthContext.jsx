@@ -40,6 +40,11 @@ export const AuthProvider = ({ children }) => {
             const response = await api.post('/auth/login', { email, password });
             setUser(response.data);
             localStorage.setItem('user', JSON.stringify(response.data));
+            // Store token separately for assessment API
+            if (response.data.token) {
+                localStorage.setItem('token', response.data.token);
+                console.log('Token stored in localStorage:', response.data.token.substring(0, 20) + '...');
+            }
             return { success: true };
         } catch (error) {
             return { success: false, message: error.response?.data?.message || 'Login failed' };
@@ -53,6 +58,11 @@ export const AuthProvider = ({ children }) => {
             console.log('Success payload:', response.data);
             setUser(response.data);
             localStorage.setItem('user', JSON.stringify(response.data));
+            // Store token separately for assessment API
+            if (response.data.token) {
+                localStorage.setItem('token', response.data.token);
+                console.log('Token stored in localStorage:', response.data.token.substring(0, 20) + '...');
+            }
             return { success: true };
         } catch (error) {
             console.error('Registration API Error:', error);
@@ -64,6 +74,7 @@ export const AuthProvider = ({ children }) => {
     const logout = () => {
         setUser(null);
         localStorage.removeItem('user');
+        localStorage.removeItem('token'); // Also remove token
     };
 
     if (loading) return <div>Loading...</div>;

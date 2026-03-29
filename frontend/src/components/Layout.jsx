@@ -1,7 +1,7 @@
 import React from 'react';
 import { Outlet, Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { LayoutDashboard, Users, UserCircle, LogOut, Briefcase, FileText } from 'lucide-react';
+import { LayoutDashboard, Users, UserCircle, LogOut, Briefcase, FileText, BookOpen, ClipboardList, Library } from 'lucide-react';
 import NotificationSystem from './NotificationSystem';
 import ChatSystem from './ChatSystem';
 import RewardsBadge from './RewardsBadge';
@@ -20,7 +20,10 @@ const Layout = () => {
         { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
         { name: 'Tasks', href: '/tasks', icon: Briefcase },
         { name: 'Team Overview', href: '/team', icon: Users, roles: ['Admin', 'Project Manager'] },
+        { name: 'Assessments', href: '/assessments', icon: ClipboardList },
+        { name: 'Marks', href: '/marks', icon: BookOpen },
         { name: 'Notes', href: '/notes', icon: FileText },
+        { name: 'Library', href: '/library', icon: Library },
         { name: 'Profile', href: '/profile', icon: UserCircle },
     ];
 

@@ -11,6 +11,9 @@ import Profile from './pages/Profile';
 import TeamOverview from './pages/TeamOverview';
 import TaskBoard from './pages/TaskBoard';
 import NotesPage from './pages/NotesPage';
+import MarksPage from './pages/MarksPage';
+import AssessmentPage from './pages/AssessmentPage';
+import LibraryPage from './pages/LibraryPage';
 
 function App() {
   return (
@@ -27,6 +30,9 @@ function App() {
               <Route path="/tasks" element={<TaskBoard />} />
               <Route path="/team" element={<TeamOverview />} />
               <Route path="/notes" element={<NotesPage />} />
+              <Route path="/marks" element={<MarksPage />} />
+              <Route path="/assessments" element={<AssessmentPage />} />
+              <Route path="/library" element={<LibraryPage />} />
               <Route path="/profile" element={<Profile />} />
               {/* Other routes will be added here */}
             </Route>
