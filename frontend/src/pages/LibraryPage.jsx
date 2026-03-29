@@ -4,6 +4,7 @@ import axios from 'axios';
 
 const LibraryPage = () => {
   const [books, setBooks] = useState([]);
+  const [openLibraryBooks, setOpenLibraryBooks] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('all');
@@ -13,6 +14,9 @@ const LibraryPage = () => {
   const [selectedBook, setSelectedBook] = useState(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
+  const [showOpenLibrary, setShowOpenLibrary] = useState(false);
+  const [openLibrarySearch, setOpenLibrarySearch] = useState('react');
+  const [openLibraryLoading, setOpenLibraryLoading] = useState(false);
 
   const categories = [
     'all', 'Fiction', 'Non-Fiction', 'Educational', 'Technical', 
