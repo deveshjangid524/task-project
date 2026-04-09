@@ -38,7 +38,92 @@ const LibraryPage = () => {
 
   useEffect(() => {
     fetchBooks();
+    fetchOpenLibraryBooks();
   }, [searchTerm, selectedCategory, currentPage]);
+
+  const fetchOpenLibraryBooks = async (query = 'javascript') => {
+    try {
+      setOpenLibraryLoading(true);
+      
+      // Try multiple approaches to avoid CORS issues
+      const approaches = [
+        // Approach 1: Direct fetch (might work if CORS headers are properly set)
+        () => fetch(`https://openlibrary.org/search.json?q=${encodeURIComponent(query)}&limit=20`),
+        // Approach 2: Using JSONP-like approach with callback parameter
+        () => fetch(`https://openlibrary.org/search.json?q=${encodeURIComponent(query)}&limit=20&callback=callback`),
+        // Approach 3: Using a public CORS proxy (as last resort)
+        () => fetch(`https://api.allorigins.win/raw?url=${encodeURIComponent(`https://openlibrary.org/search.json?q=${encodeURIComponent(query)}&limit=20`)}`)
+      ];
+      
+      let data = null;
+      let lastError = null;
+      
+      for (const approach of approaches) {
+        try {
+          const response = await approach();
+          if (response.ok) {
+            const text = await response.text();
+            // Handle potential JSONP wrapper
+            if (text.startsWith('callback(') && text.endsWith(');')) {
+              data = JSON.parse(text.slice(9, -2));
+            } else {
+              data = JSON.parse(text);
+            }
+            break;
+          }
+        } catch (error) {
+          lastError = error;
+          continue;
+        }
+      }
+      
+      if (data) {
+        setOpenLibraryBooks(data.docs || []);
+      } else {
+        throw lastError || new Error('All approaches failed');
+      }
+    } catch (error) {
+      console.error('Error fetching Open Library books:', error);
+      setOpenLibraryBooks([]);
+      // Show user-friendly error
+      alert('Unable to fetch books from Open Library. This might be due to CORS restrictions. Please try again later.');
+    } finally {
+      setOpenLibraryLoading(false);
+    }
+  };
+
+  const handleOpenLibrarySearch = (e) => {
+    e.preventDefault();
+    fetchOpenLibraryBooks(openLibrarySearch);
+  };
+
+  const importOpenLibraryBook = async (book) => {
+    try {
+      const bookData = {
+        title: book.title || 'Unknown Title',
+        author: book.author_name ? book.author_name.join(', ') : 'Unknown Author',
+        description: `A book from Open Library. First published: ${book.first_publish_year || 'Unknown'}`,
+        category: 'Fiction',
+        tags: book.subject ? book.subject.slice(0, 5).join(', ') : '',
+        isbn: book.isbn ? book.isbn[0] : '',
+        publishedYear: book.first_publish_year?.toString() || '',
+        language: book.language ? book.language[0] : 'English',
+        pageCount: book.number_of_pages_median?.toString() || '',
+        coverImage: book.cover_i ? `https://covers.openlibrary.org/b/id/${book.cover_i}-M.jpg` : ''
+      };
+
+      // Create a new endpoint for importing Open Library books
+      await axios.post('/api/library/import', bookData, {
+        withCredentials: true
+      });
+      
+      fetchBooks();
+      alert('Book imported successfully!');
+    } catch (error) {
+      console.error('Error importing book:', error);
+      alert('Failed to import book: ' + (error.response?.data?.error || error.message));
+    }
+  };
 
   const fetchBooks = async () => {
     try {
@@ -52,8 +137,8 @@ const LibraryPage = () => {
         withCredentials: true
       });
       
-      setBooks(response.data.books);
-      setTotalPages(response.data.totalPages);
+      setBooks(response.data.books || []);
+      setTotalPages(response.data.totalPages || 1);
     } catch (error) {
       console.error('Error fetching books:', error);
     } finally {
@@ -131,7 +216,18 @@ const LibraryPage = () => {
   const BookCard = ({ book }) => (
     <div className="bg-white rounded-lg shadow-md hover:shadow-lg transition-shadow duration-200 p-4">
       <div className="aspect-w-3 aspect-h-4 mb-3">
-        <div className="w-full h-48 bg-gradient-to-br from-blue-100 to-purple-100 rounded-lg flex items-center justify-center">
+        {book.coverImage ? (
+          <img
+            src={book.coverImage}
+            alt={book.title}
+            className="w-full h-48 object-cover rounded-lg"
+            onError={(e) => {
+              e.target.style.display = 'none';
+              e.target.nextElementSibling.style.display = 'flex';
+            }}
+          />
+        ) : null}
+        <div className={`w-full h-48 bg-gradient-to-br from-blue-100 to-purple-100 rounded-lg flex items-center justify-center ${book.coverImage ? 'hidden' : ''}`}>
           <BookOpen className="w-16 h-16 text-blue-600" />
         </div>
       </div>
@@ -144,7 +240,7 @@ const LibraryPage = () => {
           {book.category}
         </span>
         <span className="text-xs text-gray-500">
-          {formatFileSize(book.fileSize)}
+          {book.isImported ? 'Imported' : formatFileSize(book.fileSize)}
         </span>
       </div>
       
@@ -155,34 +251,67 @@ const LibraryPage = () => {
       )}
       
       <div className="flex gap-2">
-        <button
-          onClick={() => openReader(book)}
-          className="flex-1 bg-blue-600 text-white px-3 py-2 rounded text-sm hover:bg-blue-700 transition-colors flex items-center justify-center gap-1"
-        >
-          <Eye className="w-4 h-4" />
-          Read
-        </button>
-        <button
-          onClick={() => handleDeleteBook(book._id)}
-          className="bg-red-500 text-white px-3 py-2 rounded text-sm hover:bg-red-600 transition-colors"
-        >
-          <Trash2 className="w-4 h-4" />
-        </button>
+        {!book.isImported ? (
+          <>
+            <button
+              onClick={() => openReader(book)}
+              className="flex-1 bg-blue-600 text-white px-3 py-2 rounded text-sm hover:bg-blue-700 transition-colors flex items-center justify-center gap-1"
+            >
+              <Eye className="w-4 h-4" />
+              Read
+            </button>
+            <button
+              onClick={() => handleDeleteBook(book._id)}
+              className="bg-red-500 text-white px-3 py-2 rounded text-sm hover:bg-red-600 transition-colors"
+            >
+              <Trash2 className="w-4 h-4" />
+            </button>
+          </>
+        ) : (
+          <>
+            <button
+              onClick={() => window.open(book.coverImage, '_blank')}
+              className="flex-1 bg-green-600 text-white px-3 py-2 rounded text-sm hover:bg-green-700 transition-colors flex items-center justify-center gap-1"
+            >
+              <Eye className="w-4 h-4" />
+              View Cover
+            </button>
+            <button
+              onClick={() => handleDeleteBook(book._id)}
+              className="bg-red-500 text-white px-3 py-2 rounded text-sm hover:bg-red-600 transition-colors"
+            >
+              <Trash2 className="w-4 h-4" />
+            </button>
+          </>
+        )}
       </div>
     </div>
   );
 
   const BookListItem = ({ book }) => (
     <div className="bg-white rounded-lg shadow-md hover:shadow-lg transition-shadow duration-200 p-4 flex items-center gap-4">
-      <div className="w-20 h-28 bg-gradient-to-br from-blue-100 to-purple-100 rounded-lg flex items-center justify-center flex-shrink-0">
-        <BookOpen className="w-8 h-8 text-blue-600" />
+      <div className="w-20 h-28 flex-shrink-0">
+        {book.coverImage ? (
+          <img
+            src={book.coverImage}
+            alt={book.title}
+            className="w-full h-full object-cover rounded-lg"
+            onError={(e) => {
+              e.target.style.display = 'none';
+              e.target.nextElementSibling.style.display = 'flex';
+            }}
+          />
+        ) : null}
+        <div className={`w-full h-full bg-gradient-to-br from-blue-100 to-purple-100 rounded-lg flex items-center justify-center ${book.coverImage ? 'hidden' : ''}`}>
+          <BookOpen className="w-8 h-8 text-blue-600" />
+        </div>
       </div>
       
       <div className="flex-1 min-w-0">
         <h3 className="font-semibold text-gray-800 truncate">{book.title}</h3>
         <p className="text-sm text-gray-600 truncate">by {book.author}</p>
         <p className="text-xs text-gray-500 mt-1">
-          {book.category} • {formatFileSize(book.fileSize)} • {new Date(book.createdAt).toLocaleDateString()}
+          {book.category} • {book.isImported ? 'Imported' : formatFileSize(book.fileSize)} • {new Date(book.createdAt).toLocaleDateString()}
         </p>
         {book.description && (
           <p className="text-sm text-gray-600 line-clamp-2 mt-2">
@@ -192,19 +321,39 @@ const LibraryPage = () => {
       </div>
       
       <div className="flex gap-2">
-        <button
-          onClick={() => openReader(book)}
-          className="bg-blue-600 text-white px-4 py-2 rounded text-sm hover:bg-blue-700 transition-colors flex items-center gap-1"
-        >
-          <Eye className="w-4 h-4" />
-          Read
-        </button>
-        <button
-          onClick={() => handleDeleteBook(book._id)}
-          className="bg-red-500 text-white px-3 py-2 rounded text-sm hover:bg-red-600 transition-colors"
-        >
-          <Trash2 className="w-4 h-4" />
-        </button>
+        {!book.isImported ? (
+          <>
+            <button
+              onClick={() => openReader(book)}
+              className="bg-blue-600 text-white px-4 py-2 rounded text-sm hover:bg-blue-700 transition-colors flex items-center gap-1"
+            >
+              <Eye className="w-4 h-4" />
+              Read
+            </button>
+            <button
+              onClick={() => handleDeleteBook(book._id)}
+              className="bg-red-500 text-white px-3 py-2 rounded text-sm hover:bg-red-600 transition-colors"
+            >
+              <Trash2 className="w-4 h-4" />
+            </button>
+          </>
+        ) : (
+          <>
+            <button
+              onClick={() => window.open(book.coverImage, '_blank')}
+              className="bg-green-600 text-white px-4 py-2 rounded text-sm hover:bg-green-700 transition-colors flex items-center gap-1"
+            >
+              <Eye className="w-4 h-4" />
+              View Cover
+            </button>
+            <button
+              onClick={() => handleDeleteBook(book._id)}
+              className="bg-red-500 text-white px-3 py-2 rounded text-sm hover:bg-red-600 transition-colors"
+            >
+              <Trash2 className="w-4 h-4" />
+            </button>
+          </>
+        )}
       </div>
     </div>
   );
@@ -222,13 +371,26 @@ const LibraryPage = () => {
               </h1>
               <p className="text-gray-600 mt-2">Manage and read your digital book collection</p>
             </div>
-            <button
-              onClick={() => setShowUploadModal(true)}
-              className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2"
-            >
-              <Upload className="w-5 h-5" />
-              Upload Book
-            </button>
+            <div className="flex gap-2">
+              <button
+                onClick={() => setShowOpenLibrary(!showOpenLibrary)}
+                className={`px-4 py-2 rounded-lg transition-colors flex items-center gap-2 ${
+                  showOpenLibrary 
+                    ? 'bg-green-600 text-white hover:bg-green-700' 
+                    : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                }`}
+              >
+                <BookOpen className="w-5 h-5" />
+                {showOpenLibrary ? 'My Books' : 'Browse Free Books'}
+              </button>
+              <button
+                onClick={() => setShowUploadModal(true)}
+                className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2"
+              >
+                <Upload className="w-5 h-5" />
+                Upload Book
+              </button>
+            </div>
           </div>
 
           {/* Search and Filters */}
@@ -282,38 +444,126 @@ const LibraryPage = () => {
         </div>
 
         {/* Books Display */}
-        {loading ? (
-          <div className="flex justify-center items-center h-64">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
-          </div>
-        ) : books?.length === 0 ? (
-          <div className="bg-white rounded-lg shadow-sm p-12 text-center">
-            <BookOpen className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-            <h3 className="text-xl font-semibold text-gray-700 mb-2">No books found</h3>
-            <p className="text-gray-500 mb-6">
-              {searchTerm || selectedCategory !== 'all' 
-                ? 'Try adjusting your search or filters' 
-                : 'Upload your first book to get started'
-              }
-            </p>
-            {!searchTerm && selectedCategory === 'all' && (
+        {showOpenLibrary ? (
+          /* Open Library Section */
+          <div className="bg-white rounded-lg shadow-sm p-6">
+            <h2 className="text-2xl font-bold text-gray-800 mb-4">Browse Free Books from Open Library</h2>
+            
+            {/* Open Library Search */}
+            <form onSubmit={handleOpenLibrarySearch} className="flex gap-4 mb-6">
+              <input
+                type="text"
+                placeholder="Search for books (e.g., harry potter, javascript, etc.)"
+                value={openLibrarySearch}
+                onChange={(e) => setOpenLibrarySearch(e.target.value)}
+                className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              />
               <button
-                onClick={() => setShowUploadModal(true)}
-                className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2 mx-auto"
+                type="submit"
+                disabled={openLibraryLoading}
+                className="bg-green-600 text-white px-6 py-2 rounded-lg hover:bg-green-700 transition-colors disabled:opacity-50"
               >
-                <Plus className="w-5 h-5" />
-                Upload Your First Book
+                {openLibraryLoading ? 'Searching...' : 'Search'}
               </button>
+            </form>
+
+            {openLibraryLoading ? (
+              <div className="flex justify-center items-center h-64">
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-green-600"></div>
+              </div>
+            ) : openLibraryBooks.length === 0 ? (
+              <div className="text-center py-12">
+                <BookOpen className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+                <h3 className="text-xl font-semibold text-gray-700 mb-2">No books found</h3>
+                <p className="text-gray-500">Try searching for different terms</p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                {openLibraryBooks.map((book, index) => (
+                  <div key={index} className="bg-white border border-gray-200 rounded-lg p-4 hover:shadow-lg transition-shadow">
+                    <div className="aspect-w-3 aspect-h-4 mb-3">
+                      {book.cover_i ? (
+                        <img
+                          src={`https://covers.openlibrary.org/b/id/${book.cover_i}-M.jpg`}
+                          alt={book.title}
+                          className="w-full h-48 object-cover rounded-lg"
+                          onError={(e) => {
+                            e.target.src = '';
+                            e.target.className = 'w-full h-48 bg-gradient-to-br from-green-100 to-blue-100 rounded-lg flex items-center justify-center';
+                            e.target.innerHTML = '<div class="text-green-600"><svg class="w-16 h-16 mx-auto" fill="currentColor" viewBox="0 0 20 20"><path d="M9 4.804A7.968 7.968 0 005.5 4c-1.255 0-2.443.29-3.5.804v10A7.969 7.969 0 015.5 14c1.669 0 3.218.51 4.5 1.385A7.962 7.962 0 0114.5 14c1.255 0 2.443.29 3.5.804v-10A7.968 7.968 0 0014.5 4c-1.255 0-2.443.29-3.5.804V12a1 1 0 11-2 0V4.804z"/></svg></div>';
+                          }}
+                        />
+                      ) : (
+                        <div className="w-full h-48 bg-gradient-to-br from-green-100 to-blue-100 rounded-lg flex items-center justify-center">
+                          <BookOpen className="w-16 h-16 text-green-600" />
+                        </div>
+                      )}
+                    </div>
+                    
+                    <h3 className="font-semibold text-gray-800 text-sm line-clamp-2 mb-1">{book.title || 'Unknown Title'}</h3>
+                    <p className="text-xs text-gray-600 truncate mb-2">
+                      by {book.author_name ? book.author_name.join(', ') : 'Unknown Author'}
+                    </p>
+                    
+                    <div className="text-xs text-gray-500 mb-3">
+                      {book.first_publish_year && `Published: ${book.first_publish_year}`}
+                      {book.number_of_pages_median && ` • ${book.number_of_pages_median} pages`}
+                    </div>
+                    
+                    <button
+                      onClick={() => importOpenLibraryBook(book)}
+                      className="w-full bg-green-600 text-white px-3 py-2 rounded text-sm hover:bg-green-700 transition-colors"
+                    >
+                      Import to Library
+                    </button>
+                  </div>
+                ))}
+              </div>
             )}
           </div>
         ) : (
+          /* My Books Section */
+          loading ? (
+            <div className="flex justify-center items-center h-64">
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+            </div>
+          ) : books?.length === 0 ? (
+            <div className="bg-white rounded-lg shadow-sm p-12 text-center">
+              <BookOpen className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+              <h3 className="text-xl font-semibold text-gray-700 mb-2">No books found</h3>
+              <p className="text-gray-500 mb-6">
+                {searchTerm || selectedCategory !== 'all' 
+                  ? 'Try adjusting your search or filters' 
+                  : 'Upload your first book or browse free books'
+                }
+              </p>
+              <div className="flex justify-center gap-3">
+                <button
+                  onClick={() => setShowOpenLibrary(true)}
+                  className="bg-green-600 text-white px-6 py-2 rounded-lg hover:bg-green-700 transition-colors flex items-center gap-2"
+                >
+                  <BookOpen className="w-5 h-5" />
+                  Browse Free Books
+                </button>
+                {!searchTerm && selectedCategory === 'all' && (
+                  <button
+                    onClick={() => setShowUploadModal(true)}
+                    className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2"
+                  >
+                    <Plus className="w-5 h-5" />
+                    Upload Book
+                  </button>
+                )}
+              </div>
+            </div>
+          ) : (
           <>
             <div className={
               viewMode === 'grid' 
                 ? 'grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6'
                 : 'space-y-4'
             }>
-              {books.map(book => 
+              {(books || []).map(book => 
                 viewMode === 'grid' 
                   ? <BookCard key={book._id} book={book} />
                   : <BookListItem key={book._id} book={book} />
@@ -343,7 +593,7 @@ const LibraryPage = () => {
               </div>
             )}
           </>
-        )}
+        ))}
       </div>
 
       {/* Upload Modal */}

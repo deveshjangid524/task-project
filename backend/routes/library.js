@@ -88,6 +88,56 @@ router.get('/:id', authMiddleware.protect, async (req, res) => {
   }
 });
 
+// Import book from Open Library (without file)
+router.post('/import', authMiddleware.protect, async (req, res) => {
+  try {
+    const { title, author, description, category, tags, isbn, publishedYear, language, pageCount, coverImage } = req.body;
+    
+    // Validation
+    if (!title || !title.trim()) {
+      return res.status(400).json({ error: 'Title is required' });
+    }
+    
+    if (!author || !author.trim()) {
+      return res.status(400).json({ error: 'Author is required' });
+    }
+    
+    // Parse tags if provided
+    let parsedTags = [];
+    if (tags) {
+      parsedTags = tags.split(',').map(tag => tag.trim()).filter(tag => tag);
+    }
+    
+    const book = new Book({
+      title: title.trim(),
+      author: author.trim(),
+      description: description?.trim() || '',
+      category: category || 'Fiction',
+      tags: parsedTags,
+      isbn: isbn?.trim() || '',
+      publishedYear: publishedYear ? parseInt(publishedYear) : undefined,
+      language: language?.trim() || 'English',
+      pageCount: pageCount ? parseInt(pageCount) : undefined,
+      coverImage: coverImage?.trim() || '',
+      fileName: null,
+      originalName: null,
+      filePath: null,
+      fileSize: 0,
+      mimeType: null,
+      uploadedBy: req.user._id,
+      isImported: true
+    });
+    
+    await book.save();
+    console.log('Book imported successfully:', book._id);
+    
+    res.status(201).json(book);
+  } catch (error) {
+    console.error('Error importing book:', error);
+    res.status(400).json({ error: error.message });
+  }
+});
+
 // Upload new book
 router.post('/upload', authMiddleware.protect, upload.single('bookFile'), async (req, res) => {
   try {

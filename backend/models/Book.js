@@ -40,26 +40,30 @@ const bookSchema = new mongoose.Schema({
   },
   fileName: {
     type: String,
-    required: true
+    required: function() { return !this.isImported; }
   },
   originalName: {
     type: String,
-    required: true
+    required: function() { return !this.isImported; }
   },
   filePath: {
     type: String,
-    required: true
+    required: function() { return !this.isImported; }
   },
   fileSize: {
     type: Number,
-    required: true
+    required: function() { return !this.isImported; }
   },
   mimeType: {
     type: String,
-    required: true
+    required: function() { return !this.isImported; }
   },
   coverImage: {
     type: String
+  },
+  isImported: {
+    type: Boolean,
+    default: false
   },
   rating: {
     type: Number,
