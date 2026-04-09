@@ -52,8 +52,8 @@ const LibraryPage = () => {
         withCredentials: true
       });
       
-      setBooks(response.data.books);
-      setTotalPages(response.data.totalPages);
+      setBooks(Array.isArray(response.data.books) ? response.data.books : []);
+      setTotalPages(response.data.totalPages || 1);
     } catch (error) {
       console.error('Error fetching books:', error);
     } finally {
@@ -313,7 +313,7 @@ const LibraryPage = () => {
                 ? 'grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6'
                 : 'space-y-4'
             }>
-              {books.map(book => 
+              {Array.isArray(books) && books.map(book => 
                 viewMode === 'grid' 
                   ? <BookCard key={book._id} book={book} />
                   : <BookListItem key={book._id} book={book} />
