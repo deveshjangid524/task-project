@@ -4,6 +4,8 @@ const User = require('../models/User');
 const protect = async (req, res, next) => {
     let token;
 
+    console.log('Auth middleware - Request URL:', req.url);
+    console.log('Auth middleware - Request method:', req.method);
     console.log('Auth middleware - Request headers:', req.headers.authorization);
 
     if (

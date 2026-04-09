@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Search, Upload, BookOpen, Filter, Grid, List, Plus, Edit, Trash2, Eye, Download, Star } from 'lucide-react';
-import axios from 'axios';
+import api from '../services/api';
 
 const LibraryPage = () => {
   const [books, setBooks] = useState([]);
@@ -99,6 +99,27 @@ const LibraryPage = () => {
 
   const importOpenLibraryBook = async (book) => {
     try {
+      console.log('Importing book:', book);
+      
+      // Map language codes to full names
+      const languageMap = {
+        'eng': 'English',
+        'spa': 'Spanish',
+        'fre': 'French',
+        'ger': 'German',
+        'ita': 'Italian',
+        'por': 'Portuguese',
+        'rus': 'Russian',
+        'jpn': 'Japanese',
+        'chi': 'Chinese',
+        'kor': 'Korean',
+        'ara': 'Arabic',
+        'hin': 'Hindi'
+      };
+      
+      const languageCode = book.language ? book.language[0] : 'eng';
+      const language = languageMap[languageCode] || 'English';
+      
       const bookData = {
         title: book.title || 'Unknown Title',
         author: book.author_name ? book.author_name.join(', ') : 'Unknown Author',
@@ -107,20 +128,25 @@ const LibraryPage = () => {
         tags: book.subject ? book.subject.slice(0, 5).join(', ') : '',
         isbn: book.isbn ? book.isbn[0] : '',
         publishedYear: book.first_publish_year?.toString() || '',
-        language: book.language ? book.language[0] : 'English',
+        language: language,
         pageCount: book.number_of_pages_median?.toString() || '',
         coverImage: book.cover_i ? `https://covers.openlibrary.org/b/id/${book.cover_i}-M.jpg` : ''
       };
 
+      console.log('Book data to send:', bookData);
+      console.log('Making API call to: /library/import');
+
       // Create a new endpoint for importing Open Library books
-      await axios.post('/api/library/import', bookData, {
-        withCredentials: true
-      });
+      const response = await api.post('/library/import', bookData);
+      console.log('Import response:', response);
       
       fetchBooks();
       alert('Book imported successfully!');
     } catch (error) {
       console.error('Error importing book:', error);
+      console.error('Error response:', error.response);
+      console.error('Error status:', error.response?.status);
+      console.error('Error data:', error.response?.data);
       alert('Failed to import book: ' + (error.response?.data?.error || error.message));
     }
   };
@@ -133,9 +159,7 @@ const LibraryPage = () => {
       if (selectedCategory !== 'all') params.append('category', selectedCategory);
       params.append('page', currentPage);
 
-      const response = await axios.get(`/api/library?${params}`, {
-        withCredentials: true
-      });
+      const response = await api.get(`/library?${params}`);
       
       setBooks(response.data.books || []);
       setTotalPages(response.data.totalPages || 1);
@@ -161,8 +185,7 @@ const LibraryPage = () => {
     }
 
     try {
-      await axios.post('/api/library/upload', formData, {
-        withCredentials: true,
+      await api.post('/library/upload', formData, {
         headers: {
           'Content-Type': 'multipart/form-data'
         }
@@ -190,9 +213,7 @@ const LibraryPage = () => {
   const handleDeleteBook = async (bookId) => {
     if (window.confirm('Are you sure you want to delete this book?')) {
       try {
-        await axios.delete(`/api/library/${bookId}`, {
-          withCredentials: true
-        });
+        await api.delete(`/library/${bookId}`);
         fetchBooks();
       } catch (error) {
         console.error('Error deleting book:', error);

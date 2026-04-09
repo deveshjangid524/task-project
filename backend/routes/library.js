@@ -91,6 +91,9 @@ router.get('/:id', authMiddleware.protect, async (req, res) => {
 // Import book from Open Library (without file)
 router.post('/import', authMiddleware.protect, async (req, res) => {
   try {
+    console.log('Import request received:', req.body);
+    console.log('User:', req.user);
+    
     const { title, author, description, category, tags, isbn, publishedYear, language, pageCount, coverImage } = req.body;
     
     // Validation
