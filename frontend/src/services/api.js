@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-const API_URL = process.env.REACT_APP_API_URL || 'https://pose-ee3x.onrender.com';
+const API_URL = process.env.REACT_APP_API_URL || 'https://task-project-36nd.onrender.com';
 
 // Export the base URL for file construction
 export const API_BASE_URL = API_URL.replace('/api', '');
