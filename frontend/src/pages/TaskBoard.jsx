@@ -455,134 +455,141 @@ const TaskBoard = () => {
                 }`}></div>
             </div>
 
-            <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+            <div className="relative max-w-7xl mx-auto px-2 sm:px-4 lg:px-8 py-4 sm:py-8">
                 {/* Header */}
-                <div className={`p-8 mb-8 rounded-3xl shadow-2xl border transition-colors duration-300 ${
+                <div className={`p-4 sm:p-6 lg:p-8 mb-6 sm:mb-8 rounded-2xl sm:rounded-3xl shadow-xl sm:shadow-2xl border transition-colors duration-300 ${
                     darkMode 
                         ? 'bg-gray-800/90 backdrop-blur-xl border-gray-700' 
                         : 'bg-white/80 backdrop-blur-xl border-white/20'
                 }`}>
-                    <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between space-y-6 lg:space-y-0">
-                        <div className="flex-1">
-                            <div className="flex items-center space-x-4 mb-4 lg:mb-0">
-                                <div className={`w-16 h-16 rounded-2xl p-1 ${
-                                    darkMode 
-                                        ? 'bg-gradient-to-br from-blue-700 to-purple-700' 
-                                        : 'bg-gradient-to-br from-blue-600 to-purple-600'
+                    <div className="flex flex-col space-y-4">
+                        <div className="flex items-center space-x-3 sm:space-x-4">
+                            <div className={`w-12 h-12 sm:w-16 sm:h-16 rounded-xl sm:rounded-2xl p-1 ${
+                                darkMode 
+                                    ? 'bg-gradient-to-br from-blue-700 to-purple-700' 
+                                    : 'bg-gradient-to-br from-blue-600 to-purple-600'
+                            }`}>
+                                <div className={`w-full h-full rounded-lg sm:rounded-xl flex items-center justify-center ${
+                                    darkMode ? 'bg-gray-800' : 'bg-white'
                                 }`}>
-                                    <div className={`w-full h-full rounded-xl flex items-center justify-center ${
-                                        darkMode ? 'bg-gray-800' : 'bg-white'
-                                    }`}>
-                                        <BarChart3 className={`w-8 h-8 ${darkMode ? 'text-blue-400' : 'text-blue-600'}`} />
-                                    </div>
+                                    <BarChart3 className={`w-6 h-6 sm:w-8 sm:h-8 ${darkMode ? 'text-blue-400' : 'text-blue-600'}`} />
                                 </div>
-                                <div>
-                                    <h1 className={`text-3xl font-bold ${darkMode ? 'text-white' : 'text-gray-900'}`}>
-                                        Task Board
-                                    </h1>
-                                    <p className={`mt-1 ${darkMode ? 'text-gray-300' : 'text-gray-600'}`}>
-                                        Manage and track your team's tasks efficiently
-                                    </p>
-                                </div>
+                            </div>
+                            <div>
+                                <h1 className={`text-xl sm:text-2xl lg:text-3xl font-bold ${darkMode ? 'text-white' : 'text-gray-900'}`}>
+                                    Task Board
+                                </h1>
+                                <p className={`text-sm sm:text-base mt-1 ${darkMode ? 'text-gray-300' : 'text-gray-600'}`}>
+                                    Manage and track your team's tasks efficiently
+                                </p>
                             </div>
                         </div>
 
-                        <div className="flex items-center space-x-3">
-                            {/* Search */}
-                            <div className="relative">
-                                <Search className={`absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 ${
-                                    darkMode ? 'text-gray-400' : 'text-gray-500'
-                                }`} />
-                                <input
-                                    type="text"
-                                    placeholder="Search tasks..."
-                                    value={searchQuery}
-                                    onChange={(e) => setSearchQuery(e.target.value)}
-                                    className={`pl-10 pr-4 py-2.5 rounded-xl border focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all ${
+                        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between space-y-4 sm:space-y-0">
+                            {/* Search and Filter */}
+                            <div className="flex flex-col sm:flex-row space-y-3 sm:space-y-0 sm:space-x-3">
+                                {/* Search */}
+                                <div className="relative">
+                                    <Search className={`absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 sm:w-5 sm:h-5 ${
+                                        darkMode ? 'text-gray-400' : 'text-gray-500'
+                                    }`} />
+                                    <input
+                                        type="text"
+                                        placeholder="Search tasks..."
+                                        value={searchQuery}
+                                        onChange={(e) => setSearchQuery(e.target.value)}
+                                        className={`pl-9 sm:pl-10 pr-3 sm:pr-4 py-2 sm:py-2.5 rounded-lg sm:rounded-xl border focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all text-sm sm:text-base ${
+                                            darkMode 
+                                                ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-400' 
+                                                : 'bg-white border-gray-200 text-gray-900 placeholder-gray-500'
+                                        }`}
+                                    />
+                                </div>
+
+                                {/* Filter Buttons */}
+                                <div className="flex space-x-2">
+                                    <button
+                                        onClick={() => setFilter('all')}
+                                        className={`inline-flex items-center px-2 sm:px-3 py-2 border text-xs sm:text-sm font-medium rounded-lg sm:rounded-xl transition-all ${
+                                            filter === 'all' 
+                                                ? 'bg-blue-600 text-white border-blue-600' 
+                                                : darkMode 
+                                                    ? 'bg-gray-700 text-gray-200 border-gray-600 hover:bg-gray-600' 
+                                                    : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
+                                        }`}
+                                    >
+                                        <Users className="w-3 h-3 sm:w-4 sm:h-4 mr-1" />
+                                        <span className="hidden sm:inline">All</span>
+                                        <span className="sm:hidden">A</span>
+                                    </button>
+                                    
+                                    <button
+                                        onClick={() => setFilter('my')}
+                                        className={`inline-flex items-center px-2 sm:px-3 py-2 border text-xs sm:text-sm font-medium rounded-lg sm:rounded-xl transition-all ${
+                                            filter === 'my' 
+                                                ? 'bg-green-600 text-white border-green-600' 
+                                                : darkMode 
+                                                    ? 'bg-gray-700 text-gray-200 border-gray-600 hover:bg-gray-600' 
+                                                    : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
+                                        }`}
+                                    >
+                                        <User className="w-3 h-3 sm:w-4 sm:h-4 mr-1" />
+                                        <span className="hidden sm:inline">My Tasks</span>
+                                        <span className="sm:hidden">My</span>
+                                    </button>
+                                </div>
+                            </div>
+
+                            {/* Action Buttons */}
+                            <div className="flex items-center space-x-2">
+                                {/* Dark Mode Toggle */}
+                                <button
+                                    onClick={toggleDarkMode}
+                                    className={`p-2 sm:p-3 rounded-lg sm:rounded-xl transition-colors ${
                                         darkMode 
-                                            ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-400' 
-                                            : 'bg-white border-gray-200 text-gray-900 placeholder-gray-500'
+                                            ? 'hover:bg-gray-700 text-yellow-400' 
+                                            : 'hover:bg-gray-100 text-gray-600'
                                     }`}
-                                />
+                                >
+                                    {darkMode ? <Sun className="w-4 h-4 sm:w-5 sm:h-5" /> : <Moon className="w-4 h-4 sm:w-5 sm:h-5" />}
+                                </button>
+
+                                {/* New Task Button */}
+                                {(user?.role === 'Admin' || user?.role === 'Project Manager') && (
+                                    <button
+                                        onClick={() => handleOpenModal()}
+                                        className="inline-flex items-center px-3 sm:px-4 py-2 border border-transparent shadow-lg text-xs sm:text-sm font-medium rounded-lg sm:rounded-xl text-white bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                                    >
+                                        <Plus className="-ml-1 mr-1 sm:mr-2 h-4 w-4 sm:h-5 sm:w-5" aria-hidden="true" />
+                                        <span className="hidden sm:inline">New Task</span>
+                                        <span className="sm:hidden">+Task</span>
+                                    </button>
+                                )}
                             </div>
-
-                            {/* Filter Buttons */}
-                            <div className="flex space-x-2">
-                                <button
-                                    onClick={() => setFilter('all')}
-                                    className={`inline-flex items-center px-3 py-2 border text-sm font-medium rounded-xl transition-all ${
-                                        filter === 'all' 
-                                            ? 'bg-blue-600 text-white border-blue-600' 
-                                            : darkMode 
-                                                ? 'bg-gray-700 text-gray-200 border-gray-600 hover:bg-gray-600' 
-                                                : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
-                                    }`}
-                                >
-                                    <Users className="w-4 h-4 mr-1" />
-                                    All
-                                </button>
-                                
-                                <button
-                                    onClick={() => setFilter('my')}
-                                    className={`inline-flex items-center px-3 py-2 border text-sm font-medium rounded-xl transition-all ${
-                                        filter === 'my' 
-                                            ? 'bg-green-600 text-white border-green-600' 
-                                            : darkMode 
-                                                ? 'bg-gray-700 text-gray-200 border-gray-600 hover:bg-gray-600' 
-                                                : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
-                                    }`}
-                                >
-                                    <User className="w-4 h-4 mr-1" />
-                                    My Tasks
-                                </button>
-                            </div>
-
-                            {/* Dark Mode Toggle */}
-                            <button
-                                onClick={toggleDarkMode}
-                                className={`p-3 rounded-xl transition-colors ${
-                                    darkMode 
-                                        ? 'hover:bg-gray-700 text-yellow-400' 
-                                        : 'hover:bg-gray-100 text-gray-600'
-                                }`}
-                            >
-                                {darkMode ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
-                            </button>
-
-                            {/* New Task Button */}
-                            {(user?.role === 'Admin' || user?.role === 'Project Manager') && (
-                                <button
-                                    onClick={() => handleOpenModal()}
-                                    className="inline-flex items-center px-4 py-2 border border-transparent shadow-lg text-sm font-medium rounded-xl text-white bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-                                >
-                                    <Plus className="-ml-1 mr-2 h-5 w-5" aria-hidden="true" />
-                                    New Task
-                                </button>
-                            )}
                         </div>
                     </div>
                 </div>
 
                 {/* Stats Cards */}
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+                <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 lg:gap-6 mb-6 sm:mb-8">
                     {[
                         { label: 'Total Tasks', value: taskStats.total, icon: BarChart3, color: 'from-blue-500 to-blue-600' },
                         { label: 'In Progress', value: taskStats.inProgress, icon: Clock, color: 'from-orange-500 to-orange-600' },
                         { label: 'Completed', value: taskStats.completed, icon: CheckCircle, color: 'from-green-500 to-green-600' },
                         { label: 'Blocked', value: taskStats.blocked, icon: TrendingUp, color: 'from-red-500 to-red-600' }
                     ].map((stat, index) => (
-                        <div key={index} className={`p-6 rounded-2xl shadow-xl border transition-colors duration-300 ${
+                        <div key={index} className={`p-3 sm:p-4 lg:p-6 rounded-xl sm:rounded-2xl shadow-lg sm:shadow-xl border transition-colors duration-300 ${
                             darkMode 
                                 ? 'bg-gray-800/90 backdrop-blur-xl border-gray-700' 
                                 : 'bg-white/80 backdrop-blur-xl border-white/20'
                         }`}>
-                            <div className={`w-12 h-12 bg-gradient-to-br ${stat.color} rounded-xl flex items-center justify-center mb-4`}>
-                                <stat.icon className="w-6 h-6 text-white" />
+                            <div className={`w-8 h-8 sm:w-10 sm:h-10 lg:w-12 lg:h-12 bg-gradient-to-br ${stat.color} rounded-lg sm:rounded-xl flex items-center justify-center mb-2 sm:mb-4`}>
+                                <stat.icon className="w-4 h-4 sm:w-5 sm:h-5 lg:w-6 lg:h-6 text-white" />
                             </div>
-                            <div className={`text-2xl font-bold ${darkMode ? 'text-white' : 'text-gray-900'}`}>
+                            <div className={`text-lg sm:text-xl lg:text-2xl font-bold ${darkMode ? 'text-white' : 'text-gray-900'}`}>
                                 {stat.value}
                             </div>
-                            <div className={`text-sm mt-1 ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+                            <div className={`text-xs sm:text-sm mt-1 ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
                                 {stat.label}
                             </div>
                         </div>
@@ -590,25 +597,25 @@ const TaskBoard = () => {
                 </div>
 
                 {/* Task Count Summary */}
-                <div className={`mb-6 p-4 rounded-2xl border ${
+                <div className={`mb-4 sm:mb-6 p-3 sm:p-4 rounded-xl sm:rounded-2xl border ${
                     darkMode 
                         ? 'bg-gray-800/50 border-gray-700 text-gray-300' 
                         : 'bg-blue-50 border-blue-200 text-gray-700'
                 }`}>
-                    <div className="flex items-center justify-between">
+                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between space-y-2 sm:space-y-0">
                         <div className="flex items-center space-x-2">
-                            <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${
+                            <span className={`inline-flex items-center px-2 sm:px-3 py-1 rounded-full text-xs sm:text-sm font-medium ${
                                 filter === 'my' 
                                     ? 'bg-green-600 text-white' 
                                     : filter === 'all'
                                     ? 'bg-blue-600 text-white'
                                     : 'bg-gray-600 text-white'
                             }`}>
-                                {filter === 'my' && <User className="w-4 h-4 mr-1" />}
-                                {filter === 'all' && <Users className="w-4 h-4 mr-1" />}
+                                {filter === 'my' && <User className="w-3 h-3 sm:w-4 sm:h-4 mr-1" />}
+                                {filter === 'all' && <Users className="w-3 h-3 sm:w-4 sm:h-4 mr-1" />}
                                 {filter === 'my' ? 'My Tasks' : 'All Tasks'}
                             </span>
-                            <span className={`ml-2 ${darkMode ? 'text-gray-300' : 'text-gray-600'}`}>
+                            <span className={`text-xs sm:text-sm ${darkMode ? 'text-gray-300' : 'text-gray-600'}`}>
                                 ({searchQuery.trim() ? 
                                     tasks.filter(task => 
                                         task.title?.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -620,7 +627,7 @@ const TaskBoard = () => {
                         {searchQuery && (
                             <button
                                 onClick={() => setSearchQuery('')}
-                                className={`text-sm ${darkMode ? 'text-gray-400 hover:text-gray-200' : 'text-gray-500 hover:text-gray-700'}`}
+                                className={`text-xs sm:text-sm ${darkMode ? 'text-gray-400 hover:text-gray-200' : 'text-gray-500 hover:text-gray-700'}`}
                             >
                                 Clear search
                             </button>
@@ -629,12 +636,12 @@ const TaskBoard = () => {
                 </div>
 
                 {/* Task Board */}
-                <div className={`flex-1 overflow-x-auto overflow-y-hidden rounded-3xl shadow-2xl border transition-colors duration-300 ${
+                <div className={`flex-1 overflow-x-auto overflow-y-hidden rounded-xl sm:rounded-2xl lg:rounded-3xl shadow-lg sm:shadow-xl lg:shadow-2xl border transition-colors duration-300 ${
                     darkMode 
                         ? 'bg-gray-800/90 backdrop-blur-xl border-gray-700' 
                         : 'bg-white/80 backdrop-blur-xl border-white/20'
                 }`}>
-                    <div className="flex h-full space-x-4 pb-4 items-start min-w-[1200px]">
+                    <div className="flex h-full space-x-2 sm:space-x-4 pb-4 items-start min-w-[800px] sm:min-w-[1000px] lg:min-w-[1200px]">
                         <DndContext
                             sensors={sensors}
                             collisionDetection={closestCorners}

@@ -323,16 +323,17 @@ const NotesSection = () => {
     }
 
     return (
-        <div className="bg-white rounded-lg shadow-md p-6">
-            <div className="flex justify-between items-center mb-6">
-                <h2 className="text-xl font-bold text-gray-900">📝 Project Notes & Resources</h2>
+        <div className="bg-white rounded-lg shadow-md p-4 sm:p-6">
+            <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center mb-6 gap-4">
+                <h2 className="text-lg sm:text-xl font-bold text-gray-900">📝 Project Notes & Resources</h2>
                 {(user?.role === 'Admin' || user?.role === 'Project Manager') && (
                     <button
                         onClick={() => setShowAddForm(true)}
-                        className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
+                        className="flex items-center justify-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors w-full sm:w-auto"
                     >
                         <Plus className="w-4 h-4" />
-                        Add Note
+                        <span className="hidden sm:inline">Add Note</span>
+                        <span className="sm:hidden">Add</span>
                     </button>
                 )}
             </div>
@@ -341,10 +342,10 @@ const NotesSection = () => {
             {showAddForm && (
                 <div className="mb-6 p-4 border border-gray-200 rounded-lg bg-gray-50">
                     <div className="flex justify-between items-center mb-4">
-                        <h3 className="text-lg font-semibold">Add New Note</h3>
+                        <h3 className="text-base sm:text-lg font-semibold">Add New Note</h3>
                         <button
                             onClick={() => setShowAddForm(false)}
-                            className="text-gray-500 hover:text-gray-700"
+                            className="text-gray-500 hover:text-gray-700 p-1"
                         >
                             <X className="w-5 h-5" />
                         </button>
@@ -416,7 +417,7 @@ const NotesSection = () => {
                                 <label className="block text-sm font-medium text-gray-700 mb-1">
                                     Upload File
                                 </label>
-                                <div className="border-2 border-dashed border-gray-300 rounded-lg p-4 text-center">
+                                <div className="border-2 border-dashed border-gray-300 rounded-lg p-3 sm:p-4 text-center">
                                     <input
                                         type="file"
                                         id="file-upload"
@@ -426,7 +427,7 @@ const NotesSection = () => {
                                     />
                                     <label
                                         htmlFor="file-upload"
-                                        className="cursor-pointer inline-flex items-center gap-2 px-4 py-2 bg-blue-50 text-blue-600 rounded-md hover:bg-blue-100 transition-colors"
+                                        className="cursor-pointer inline-flex items-center gap-2 px-3 sm:px-4 py-2 bg-blue-50 text-blue-600 rounded-md hover:bg-blue-100 transition-colors text-sm sm:text-base"
                                     >
                                         <Upload className="w-4 h-4" />
                                         {uploading ? 'Uploading...' : 'Choose File'}
@@ -529,18 +530,18 @@ const NotesSection = () => {
                             </div>
                         </div>
 
-                        <div className="flex gap-2">
+                        <div className="flex flex-col sm:flex-row gap-2">
                             <button
                                 type="submit"
                                 disabled={loading}
-                                className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50"
+                                className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50"
                             >
                                 {loading ? 'Saving...' : 'Save Now'}
                             </button>
                             <button
                                 type="button"
                                 onClick={() => setShowAddForm(false)}
-                                className="px-4 py-2 bg-gray-300 text-gray-700 rounded-md hover:bg-gray-400"
+                                className="flex-1 px-4 py-2 bg-gray-300 text-gray-700 rounded-md hover:bg-gray-400"
                             >
                                 Cancel
                             </button>
@@ -563,18 +564,22 @@ const NotesSection = () => {
                     </div>
                 )}
                 {notes.length > 0 && notes.map((note) => (
-                        <div key={note._id} className="border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow">
-                            <div className="flex justify-between items-start mb-2">
-                                <div className="flex items-center gap-2">
-                                    {getNoteIcon(note.type)}
-                                    <h3 className="font-semibold text-gray-900">{note.title}</h3>
-                                    <span className="text-xs px-2 py-1 bg-blue-100 text-blue-800 rounded-full">
-                                        {note.type.toUpperCase()}
-                                    </span>
+                        <div key={note._id} className="border border-gray-200 rounded-lg p-3 sm:p-4 hover:shadow-md transition-shadow">
+                            <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-2 mb-2">
+                                <div className="flex items-start gap-2 flex-1">
+                                    <div className="mt-1">
+                                        {getNoteIcon(note.type)}
+                                    </div>
+                                    <div className="flex-1 min-w-0">
+                                        <h3 className="font-semibold text-gray-900 break-words">{note.title}</h3>
+                                        <span className="inline-block text-xs px-2 py-1 bg-blue-100 text-blue-800 rounded-full mt-1">
+                                            {note.type.toUpperCase()}
+                                        </span>
+                                    </div>
                                 </div>
                                 <button
                                     onClick={() => handleDelete(note._id)}
-                                    className="text-red-500 hover:text-red-700"
+                                    className="text-red-500 hover:text-red-700 p-1 flex-shrink-0"
                                     title="Delete note"
                                 >
                                     <Trash2 className="w-4 h-4" />
@@ -597,10 +602,10 @@ const NotesSection = () => {
                                         href={note.content}
                                         target="_blank"
                                         rel="noopener noreferrer"
-                                        className="text-blue-600 hover:text-blue-800 underline flex items-center gap-1"
+                                        className="text-blue-600 hover:text-blue-800 underline flex items-center gap-1 text-sm break-all"
                                     >
-                                        <Eye className="w-4 h-4" />
-                                        Open Link
+                                        <Eye className="w-4 h-4 flex-shrink-0" />
+                                        <span className="truncate">Open Link</span>
                                     </a>
                                 </div>
                             )}
@@ -627,7 +632,7 @@ const NotesSection = () => {
                                     <div className="flex gap-2">
                                         {/* Always show View button for file types */}
                                         <button
-                                            onClick={() => {
+                                            onClick={async () => {
                                                 console.log('View button clicked for note:', note);
                                                 console.log('fileUrl:', note.fileUrl);
                                                 console.log('content:', note.content);
@@ -643,6 +648,7 @@ const NotesSection = () => {
                                                         if (fileUrl.startsWith('blob:')) {
                                                             console.log('Opening local blob URL');
                                                             fullUrl = fileUrl;
+                                                            window.open(fullUrl, '_blank', 'noopener,noreferrer');
                                                         } else if (fileUrl.startsWith('http')) {
                                                             // Already a full URL (from backend)
                                                             fullUrl = fileUrl;
@@ -652,7 +658,28 @@ const NotesSection = () => {
                                                         }
                                                         
                                                         console.log('Full URL for viewing:', fullUrl);
-                                                        window.open(fullUrl, '_blank', 'noopener,noreferrer');
+                                                        
+                                                        // Use authenticated API to fetch the file
+                                                        // Remove the API_BASE_URL prefix since api.get() already includes it
+                                                        const apiUrl = fullUrl.replace(API_BASE_URL, '');
+                                                        console.log('API URL after removing base:', apiUrl);
+                                                        
+                                                        const response = await api.get(apiUrl, {
+                                                            responseType: 'blob'
+                                                        });
+                                                        
+                                                        // Create blob from response
+                                                        const blob = new Blob([response.data]);
+                                                        const blobUrl = window.URL.createObjectURL(blob);
+                                                        
+                                                        // Open in new tab
+                                                        window.open(blobUrl, '_blank', 'noopener,noreferrer');
+                                                        
+                                                        // Clean up blob URL after a short delay
+                                                        setTimeout(() => {
+                                                            window.URL.revokeObjectURL(blobUrl);
+                                                        }, 1000);
+                                                        
                                                         showNotification('success', 'Opening file...', 'Success');
                                                     } catch (error) {
                                                         console.error('Error opening file:', error);
@@ -707,26 +734,52 @@ const NotesSection = () => {
                                                             
                                                             console.log('Full URL for download:', fullUrl);
                                                             
-                                                            // Use authenticated API to fetch the file
-                                                            const response = await api.get(fullUrl, {
-                                                                responseType: 'blob'
-                                                            });
-                                                            
-                                                            // Create blob from response
-                                                            const blob = new Blob([response.data]);
-                                                            const blobUrl = window.URL.createObjectURL(blob);
-                                                            
-                                                            // Create download link
-                                                            const link = document.createElement('a');
-                                                            link.href = blobUrl;
-                                                            link.download = note.fileName || 'document';
-                                                            link.target = '_blank';
-                                                            document.body.appendChild(link);
-                                                            link.click();
-                                                            document.body.removeChild(link);
-                                                            
-                                                            // Clean up blob URL
-                                                            window.URL.revokeObjectURL(blobUrl);
+                                                            if (fileUrl.startsWith('http')) {
+                                                                // Full URL - make direct axios call with auth headers
+                                                                const response = await axios.get(fullUrl, {
+                                                                    responseType: 'blob',
+                                                                    headers: {
+                                                                        'Authorization': `Bearer ${localStorage.getItem('token')}`
+                                                                    }
+                                                                });
+                                                                
+                                                                // Create blob from response
+                                                                const blob = new Blob([response.data]);
+                                                                const blobUrl = window.URL.createObjectURL(blob);
+                                                                
+                                                                // Create download link
+                                                                const link = document.createElement('a');
+                                                                link.href = blobUrl;
+                                                                link.download = note.fileName || 'document';
+                                                                link.target = '_blank';
+                                                                document.body.appendChild(link);
+                                                                link.click();
+                                                                document.body.removeChild(link);
+                                                                
+                                                                // Clean up blob URL
+                                                                window.URL.revokeObjectURL(blobUrl);
+                                                            } else {
+                                                                // Relative URL - use api client
+                                                                const response = await api.get(fullUrl, {
+                                                                    responseType: 'blob'
+                                                                });
+                                                                
+                                                                // Create blob from response
+                                                                const blob = new Blob([response.data]);
+                                                                const blobUrl = window.URL.createObjectURL(blob);
+                                                                
+                                                                // Create download link
+                                                                const link = document.createElement('a');
+                                                                link.href = blobUrl;
+                                                                link.download = note.fileName || 'document';
+                                                                link.target = '_blank';
+                                                                document.body.appendChild(link);
+                                                                link.click();
+                                                                document.body.removeChild(link);
+                                                                
+                                                                // Clean up blob URL
+                                                                window.URL.revokeObjectURL(blobUrl);
+                                                            }
                                                         }
                                                         
                                                         showNotification('success', 'Download started...', 'Success');

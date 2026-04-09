@@ -93,7 +93,7 @@ const Login = () => {
                 <div className="grid md:grid-cols-2 gap-8 items-center">
                     
                     {/* Left side - Welcome content */}
-                    <div className="hidden md:block text-center lg:text-left space-y-6 p-8">
+                    <div className="hidden lg:block text-center lg:text-left space-y-6 p-8">
                         <div className="flex items-center justify-center lg:justify-start space-x-3">
                             <div className="p-3 bg-gradient-to-br from-blue-600 to-purple-600 rounded-2xl shadow-lg">
                                 <Shield className="h-8 w-8 text-white" />
@@ -104,30 +104,30 @@ const Login = () => {
                         </div>
                         
                         <div className="space-y-4">
-                            <h2 className="text-4xl font-bold text-gray-900 leading-tight">
+                            <h2 className="text-3xl sm:text-4xl font-bold text-gray-900 leading-tight">
                                 Welcome to Your
                                 <span className="block bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
                                     Productivity Hub
                                 </span>
                             </h2>
                             
-                            <p className="text-lg text-gray-600 leading-relaxed">
+                            <p className="text-base sm:text-lg text-gray-600 leading-relaxed">
                                 Streamline your workflow, collaborate with your team, and achieve more with our powerful task management platform.
                             </p>
                         </div>
 
-                        <div className="grid grid-cols-3 gap-4 pt-6">
-                            <div className="text-center p-4 bg-white/60 backdrop-blur-sm rounded-2xl border border-white/20">
-                                <div className="text-2xl font-bold text-blue-600">10K+</div>
-                                <div className="text-sm text-gray-600">Active Users</div>
+                        <div className="grid grid-cols-3 gap-2 sm:gap-4 pt-6">
+                            <div className="text-center p-2 sm:p-4 bg-white/60 backdrop-blur-sm rounded-2xl border border-white/20">
+                                <div className="text-lg sm:text-2xl font-bold text-blue-600">10K+</div>
+                                <div className="text-xs sm:text-sm text-gray-600">Active Users</div>
                             </div>
-                            <div className="text-center p-4 bg-white/60 backdrop-blur-sm rounded-2xl border border-white/20">
-                                <div className="text-2xl font-bold text-purple-600">99.9%</div>
-                                <div className="text-sm text-gray-600">Uptime</div>
+                            <div className="text-center p-2 sm:p-4 bg-white/60 backdrop-blur-sm rounded-2xl border border-white/20">
+                                <div className="text-lg sm:text-2xl font-bold text-purple-600">99.9%</div>
+                                <div className="text-xs sm:text-sm text-gray-600">Uptime</div>
                             </div>
-                            <div className="text-center p-4 bg-white/60 backdrop-blur-sm rounded-2xl border border-white/20">
-                                <div className="text-2xl font-bold text-indigo-600">24/7</div>
-                                <div className="text-sm text-gray-600">Support</div>
+                            <div className="text-center p-2 sm:p-4 bg-white/60 backdrop-blur-sm rounded-2xl border border-white/20">
+                                <div className="text-lg sm:text-2xl font-bold text-indigo-600">24/7</div>
+                                <div className="text-xs sm:text-sm text-gray-600">Support</div>
                             </div>
                         </div>
 
@@ -148,7 +148,7 @@ const Login = () => {
 
                     {/* Right side - Login/Register form */}
                     <div className="w-full max-w-md mx-auto">
-                        <div className="bg-white/80 backdrop-blur-xl rounded-3xl shadow-2xl border border-white/20 p-8 space-y-6">
+                        <div className="bg-white/80 backdrop-blur-xl rounded-3xl shadow-2xl border border-white/20 p-4 sm:p-6 lg:p-8 space-y-6">
                             
                             {/* Header */}
                             <div className="text-center space-y-4">
